@@ -1,0 +1,2 @@
+# SDK contract is checked offline; no successful provider run is implied.
+tinker==0.36.0

@@ -1,0 +1,2 @@
+# Optional API runner only. Does not download local TabPFN model weights.
+tabpfn-client==0.7.0

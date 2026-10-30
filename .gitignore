@@ -1,0 +1,16 @@
+/work/
+/outputs/*
+!/outputs/vacancy-autopsy/
+**/node_modules/
+**/.tools/
+**/dist/
+**/data/
+**/.env
+**/.env.*
+!**/.env.example
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/ml/artifacts/
+**/*.log
+**/.DS_Store
