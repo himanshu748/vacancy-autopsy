@@ -5,6 +5,7 @@ import type { Investigation, InvestigationInput } from '../shared/types.js';
 import { verifyFeed, hashBody, type Fetcher } from './ats.js';
 import { identify, sanitizeInput } from './identity.js';
 import { evidenceSchema, identitySchema, investigationInputSchema, investigationSchema, timelineSchema } from './schemas.js';
+import { traceOperation, traceSourceOutcome } from './observability.js';
 
 const requestSchema = z.object({ input: investigationInputSchema, previousInvestigationId: z.string().uuid().optional() });
 const identifiedSchema = requestSchema.extend({
@@ -22,10 +23,14 @@ export interface InvestigationOptions { fetcher?: Fetcher; signal?: AbortSignal;
 
 /** A deterministic Mastra workflow. No model call or durable execution is implied. */
 export async function runInvestigation(rawInput: InvestigationInput, options: InvestigationOptions = {}): Promise<Investigation> {
+  return traceOperation('investigation.run', async () => runInvestigationSteps(rawInput, options));
+}
+
+async function runInvestigationSteps(rawInput: InvestigationInput, options: InvestigationOptions): Promise<Investigation> {
   const input = sanitizeInput(investigationInputSchema.parse(rawInput));
   const extractIdentity = createStep({
     id: 'resolve-posting-identity', inputSchema: requestSchema, outputSchema: identifiedSchema,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData }) => traceOperation('identity.resolve', async () => {
       const createdAt = new Date().toISOString();
       const identityResult = identify(inputData.input);
       const evidence = inputData.input.advertisementText ? [{
@@ -38,25 +43,26 @@ export async function runInvestigation(rawInput: InvestigationInput, options: In
         timeline: [{ name: identityResult.identity ? 'Job identity resolved' : 'Job identity unresolved', status: identityResult.identity ? 'complete' as const : 'warning' as const,
           detail: identityResult.identity ? `Exact ${identityResult.identity.ats} posting ID read from the supplied URL.` : identityResult.warning!,
           at: createdAt }] };
-    },
+    }),
   });
   const checkOfficialSource = createStep({
     id: 'check-public-job-feed', inputSchema: identifiedSchema, outputSchema: checkedSchema,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData }) => traceOperation('source.verify', async () => {
       const feed = inputData.identity ? await verifyFeed(inputData.identity, options) : {
         verdict: 'inconclusive' as const, explanation: inputData.warning ?? 'No verifiable posting identity was supplied.',
         limitations: ['No official job feed was fetched because the posting identity could not be resolved.'],
         evidence: [], checkedAt: new Date().toISOString(),
       };
+      traceSourceOutcome(feed.verdict, feed.evidence.length);
       return { ...inputData, feed, timeline: [...inputData.timeline, {
         name: inputData.identity ? 'Official source checked' : 'Official check skipped', status: !inputData.identity ? 'skipped' as const : feed.verdict === 'inconclusive' ? 'warning' as const : 'complete' as const,
         detail: feed.explanation, at: feed.checkedAt,
       }] };
-    },
+    }),
   });
   const sealEvidence = createStep({
     id: 'seal-qualified-evidence-report', inputSchema: checkedSchema, outputSchema: investigationSchema,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData }) => traceOperation('evidence.seal', async () => {
       const evidence = [...inputData.evidence, ...inputData.feed.evidence];
       const limitations = [...inputData.feed.limitations];
       if (inputData.warning) limitations.unshift(inputData.warning);
@@ -84,7 +90,7 @@ export async function runInvestigation(rawInput: InvestigationInput, options: In
         mode: 'live' as const, publication: 'private' as const,
         ...(inputData.previousInvestigationId ? { previousInvestigationId: inputData.previousInvestigationId } : {}),
       };
-    },
+    }),
   });
   const workflow = createWorkflow({ id: 'vacancy-autopsy-investigation', inputSchema: requestSchema,
     outputSchema: investigationSchema })

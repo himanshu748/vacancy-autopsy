@@ -96,7 +96,8 @@ export class MongoStore implements InvestigationStore {
   async put(report: Investigation): Promise<void> {
     const record = investigationSchema.parse(report);
     if (Buffer.byteLength(JSON.stringify(record)) > MAX_REPORT_BYTES) throw new StorageFullError('The evidence report exceeds the storage budget.');
-    await this.collection.insertOne(record);
+    const result = await this.collection.insertOne(record);
+    if (!result.acknowledged) throw new Error('The report write was not acknowledged.');
   }
 
   async get(id: string): Promise<Investigation | null> {

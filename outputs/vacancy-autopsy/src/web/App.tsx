@@ -10,6 +10,10 @@ import type {
   InvestigationInput,
   Verdict,
 } from "../shared/types";
+import { SourceResearch } from './SourceResearch';
+import { ReviewerPanel, getReviewerReturnReportId } from './ReviewerPanel';
+import { WorkspaceGate } from './WorkspaceGate';
+import { authorizedFetch, authenticatedDownload } from './workspace-auth';
 
 const verdicts: Record<
   Verdict,
@@ -129,7 +133,7 @@ const safeLink = (url: string) => {
   }
 };
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await authorizedFetch(path, {
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
   });
@@ -144,7 +148,9 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json();
 }
 
-export function App() {
+export function App() { return <WorkspaceGate><InvestigationDesk /></WorkspaceGate>; }
+
+function InvestigationDesk() {
   const [page, setPage] = useState<"desk" | "archive" | "method">("desk");
   const [url, setUrl] = useState("");
   const [officialUrl, setOfficialUrl] = useState("");
@@ -170,6 +176,9 @@ export function App() {
         if (!controller.signal.aborted)
           setHistoryError("The case archive could not be loaded.");
       });
+    const returnReport = getReviewerReturnReportId();
+    if (returnReport) api<Investigation>(`/api/investigations/${returnReport}`, { signal: controller.signal })
+      .then(update).catch(() => { if (!controller.signal.aborted) setError('The case for review could not be restored. Open it from the archive.'); });
     return () => controller.abort();
   }, []);
   const update = (next: Investigation) => {
@@ -445,6 +454,7 @@ export function App() {
                       </div>
                     )}
                   </form>
+                  <SourceResearch jobUrl={url} onChoose={(next) => { setUrl(next); setOfficialUrl(''); setAdvertisementText(''); setError(''); document.getElementById('job-url')?.focus(); }} />
                   <div className="private-note">
                     <Icon name="shield" size={17} />
                     <span>
@@ -615,6 +625,7 @@ export function App() {
                             className="secondary-button"
                             href={`/api/investigations/${record.id}/report`}
                             download
+                            onClick={(event) => void authenticatedDownload(event, `/api/investigations/${record.id}/report`).catch(() => setError('The evidence could not be downloaded. Please sign in again and retry.'))}
                           >
                             <Icon name="download" size={16} />
                             Download evidence
@@ -627,6 +638,7 @@ export function App() {
                             <Icon name="refresh" size={16} /> Recheck source
                           </button>
                         </div>
+                        <ReviewerPanel key={record.id} report={record} />
                         <details className="source-details">
                           <summary>
                             Inspect sources &amp; limitations <span>+</span>

@@ -1,2 +1,4 @@
 # SDK contract is checked offline; no successful provider run is implied.
 tinker==0.36.0
+# Transformers chat templates require this optional dependency at runtime.
+Jinja2==3.1.6

@@ -1,64 +1,53 @@
 # Verification receipt — October 30, 2026
 
-Result: **working local investigation slice; full ten-sponsor release incomplete**. Eight meaningful sponsor integrations, real model benchmarks, a verified stale-ad finding, and a hosted public demo have not been established.
+**The local investigation journey works. The ten-sponsor release is incomplete.** A real advertisement/source mismatch has been observed. No learned-model benchmark, eight-sponsor qualification or hosted demo is claimed.
 
-## Automated checks
+## Executed checks
 
-| Check | Actual result | Evidence boundary |
+| Check | Actual result | Boundary |
 | --- | --- | --- |
-| TypeScript strict check and Vite production build | Passed | Compiles the local app and optional Temporal code |
-| TypeScript tests | 21 passed; one server-dependent recovery test skipped in the ordinary suite | Exact identity, partial/malformed/error responses, invalid UTF-8, pagination, direct Lever lookup, immutable reports/rechecks, local Host/Origin guard, Unicode request limits, durable persistence and redacted errors; source responses are synthetic fixtures |
-| Python logic tests | 46 passed | Synthetic logic fixtures; schema, leakage, grouped splits, frozen extraction/priority manifests, baselines/metrics, counterpart provenance, token-cap gates and extraction loss masks; no learned-model accuracy claim |
-| Real local Temporal recovery | Passed separately | Real server and worker, synthetic source; SIGKILL after evidence save, restart, same report, exactly one source fetch, history replay |
-| Runtime dependency audit | Zero reported advisories | `npm audit --omit=dev`; a point-in-time registry audit, not a complete security assessment |
+| Strict TypeScript check and production Vite build | Passed | Includes optional source research, Auth0, Sentry, Mongo and Temporal code |
+| TypeScript tests | 64 passed, one recovery test skipped in ordinary suite | Real Fastify/JWT/SDK logic with synthetic sources, provider transports and storage drivers |
+| Python tests | 47 passed | Schemas, leakage/splits, metrics, provenance, token limits and tokenizer-return regression; no learned-model accuracy claim |
+| Real local Temporal recovery | Passed separately at `2026-10-30T11:26:51.414Z` | Worker SIGKILL after persistence, restart, same immutable report, exactly one fetch, history replay; source is synthetic |
+| Production dependency audit | Zero reported advisories | Fresh `npm audit --omit=dev`; registry audit is not a complete security assessment |
+| Download integrity | Nine downloaded report files rehashed | Every retained evidence body's UTF-8 SHA-256 matched; linked Figma recheck preserved original |
 
-Reproduce ordinary checks with `npm run build`, `npm test`, and `python3 -m unittest discover -s ml/tests -v`. [Temporal instructions](TEMPORAL.md) describe the opt-in recovery check and its saved receipt.
+Reproduce with `npm run build`, `npm test`, and `python3 -m unittest discover -s ml/tests -v`. Tests cover exact/partial/malformed ATS responses, safe requests and cancellation, immutable reports, JWT claims and digest-bound approvals, default-deny hosted routes, per-reviewer budgets, Mongo validation/acknowledgements, redacted Sentry traces and shutdown. [Temporal instructions](TEMPORAL.md) describe the real-server test. The latest receipt is outside the source ZIP at workspace `outputs/evidence/temporal-recovery-receipt.json`.
 
-## Real source observations
+## Real sources and browser journey
 
-The public sources below were requested through the actual local API, with the optional Temporal worker enabled for later checks. Reports retain response text, source URLs, capture times, status codes and SHA-256 values. These are positive source observations, not stale-job accusations.
+The requested **in-app browser** exercised the built application on port 8787; this is separate from fixture tests. Earlier positive observations included:
 
-| Source | Outcome | Saved report |
+| Source | Observation | Saved report |
 | --- | --- | --- |
-| Ashby / ThinkingMachines / `885f32cc-5b1c-465c-af5a-e88634065bc6` | Verified open; “Research, General Agents” | `960699df-fe67-42e3-a98c-f4a74398c0f5`, checked `2026-10-30T06:41:04.305Z` |
-| Ashby / semgrep / `8e64dc7f-e925-4361-86d5-b01ee518c987` | Verified open; “Software Engineer Intern” | `ec7f1f7a-097d-4b83-b443-15bc126e002e`, checked `2026-10-30T06:47:38.220Z` |
-| Greenhouse / figma / `5426468004` | Verified open; “Account Executive, Enterprise” | `b7265f6a-baec-4aae-bb5e-d143331a069e` |
-| Lever / palantir / `6ed76ce8-4156-4b60-b120-403538bd66cd` | Initial board check timed out: inconclusive. A later direct-posting lookup verified “Administrative Business Partner” | Original `b53893e8-c068-4256-ab40-433eaeb73321` retained; recheck `379636f9-eb4a-49a9-a403-6551833bbc0e`, checked `2026-10-30T06:56:12.303Z` |
+| Ashby / ThinkingMachines | Research, General Agents — verified open | `960699df-fe67-42e3-a98c-f4a74398c0f5` |
+| Ashby / Semgrep | Software Engineer Intern — verified open | `ec7f1f7a-097d-4b83-b443-15bc126e002e`; later `4f5f7382-278d-4490-a69f-9a363ca7ee3b` |
+| Greenhouse / Figma | Account Executive, Enterprise — verified open | `b7265f6a-baec-4aae-bb5e-d143331a069e` |
+| Lever / Palantir | First check timed out and remained inconclusive; direct-posting recheck verified Administrative Business Partner | Original `b53893e8-c068-4256-ab40-433eaeb73321`; recheck `379636f9-eb4a-49a9-a403-6551833bbc0e` |
 
-Downloaded evidence bodies were independently rehashed with Python and matched their stored fingerprints. The first Ashby report was downloaded using the actual browser control. Later copies were retrieved through the local report endpoint. The public feeds may change after these capture times.
+A separate real negative observation followed manual browser inspection of the [OppIDX Brand Design Intern advertisement](https://www.oppidx.com/opportunities/brand-design-intern-summer-2027-figma-0kjy3o). Its explicit Apply anchor pointed to Figma Greenhouse `6144755004`; the browser followed it to Figma Careers. A subsequent app check at `2026-10-30T11:27:26.019Z` found that exact ID absent from a complete HTTP 200 feed of 141 postings. The app returned **Not currently listed**, report `eb0199bb-5402-4ca0-9b52-417a85055f11`. Download and recheck produced `88994822-b2b4-4cec-868d-eba25dc3b914`, preserving the original.
 
-The [Employbl Semgrep advertisement](https://www.employbl.com/jobs/software-engineer-intern-cloud-platform-semgrep-1709977) visibly linked to the same Ashby posting and displayed an update date of September 9. Its age did not justify an outdated verdict: the exact posting was still present. This is one positive counterexample, not a statistical evaluation of an age baseline. No claim that a real ad outlived its opening has been established.
+The full case is workspace `outputs/real-investigation.md`, with screenshots, manual observations and downloaded report bodies outside the shareable source ZIP. This establishes a point-in-time advertised-source mismatch. It does not establish prior removal, permanent closure, employer intent or fraud. No earlier positive observation exists for that ID. Manual linkage is not presented as automated Browserbase/SerpApi evidence or silently attached to an app verdict.
 
-## Browser journey
+The browser also exercised Enter submission/loading, source inspection, JSON downloads, rechecks/archive, unsupported-source inconclusive results, HTTP validation errors, and missing-provider configuration messages. Unconfigured reviewer sign-in stays disabled. The latest WorkspaceGate local path, negative case, download and keyboard Tab to recheck were exercised after the hosted-access changes.
 
-Used the user's requested **in-app browser**, not a screenshot mockup:
+Earlier desktop (1280px) and mobile source-tools (390px) checks found no horizontal overflow, and result focus moved to the report. The final viewport override did not change the refreshed tab's reported 1280px width; a final mobile regression is therefore not claimed. Earlier focused small-text contrast checks passed 4.5:1; this is not a WCAG certification. Reduced-motion CSS exists, but independent reduced-motion browser emulation was unavailable. Native screen readers and mobile hardware were not tested.
 
-- Submitted a real Ashby URL using Enter; observed actual loading and a verified-open report.
-- Downloaded the JSON report through the browser and checked the saved body hashes.
-- Rechecked and confirmed both original and linked new report in the archive.
-- Submitted an unsupported example-domain URL; observed inconclusive with zero source records and no fetch-based finding.
-- Submitted an HTTP URL; observed a visible server-validation error requiring public HTTPS.
-- Ran the optional Temporal path with a live Ashby source through the same UI.
-- Exercised the built app on port 8787 as well as the Vite development entry on 5173.
-- Inspected desktop at 1280 pixels and mobile at 390 pixels; the mobile document width was exactly 390, with no horizontal overflow.
-- Verified result focus moves to the report; Tab then reaches the download action. Mobile result focus brings the report into view.
-- Inspected text contrast using computed styles in the rendered desktop investigation; no non-decorative small-text failures remained below 4.5:1. This is a focused contrast check, not a complete WCAG certification.
-- No browser warnings/errors were reported on the built page at the checked point, before a deliberately invalid request was tested.
+## Implementation versus provider evidence
 
-Reduced-motion CSS disables animations/transitions. The in-app browser surface exposed viewport overrides but no media emulation control, and the active system preference was not reduced motion. **Reduced-motion rendering was not independently browser-emulated.** Native screen-reader behavior, mobile hardware, public multi-user access, provider outages, and hardware/storage-failure recovery were not tested.
+Mastra's deterministic workflow and Temporal's local durable path ran. Optional SerpApi discovery, bounded Browserbase capture, Sentry tracing, Auth0 PKCE/JWT/private approvals and Mongo artifacts/approvals are implemented and contract-tested. **No live-provider acceptance receipt exists for those integrations.** Atlas MCP access was disabled by every available organization; an owner must enable AI-client access. Browserbase Free has no available project slot; the occupied Personal project and its key were preserved. Do not circumvent that policy.
 
-## Sponsor and release limits
+Hosted mode requires real Auth0 and persistent MongoDB. It represents one private workspace shared by human reviewers with `review:reports`, not per-user or tenant isolation. Live tenant redirects, role assignment, authenticated downloads, Atlas writes/restart persistence, reverse-proxy behavior and Render entry point remain unverified. There is no public publisher.
 
-Mastra's deterministic workflow and Temporal's local durability path ran. MongoDB's optional adapter compiled but Atlas was not connected. Tinker/TabPFN provider runners are prepared and explicitly unexecuted; their imports/endpoints remain provider-unverified. SerpApi discovery, Browserbase capture, Sentry traces, Auth0 approval, and Render hosting are unimplemented or unverified as detailed in [SPONSOR-GATES.md](SPONSOR-GATES.md).
+Tinker 0.36.0 imported and 14 SDK signatures/types passed offline checks. The real tokenizer preflight passed at an explicit 16,384 context, but every planned stage exceeds the default token budget. The extraction corpus has 297 real rows; its clean-source deterministic validation result was 99%, not learned-model improvement. TabPFN import and independent two-class priority data remain missing. Neither provider ran. See [MODEL-EXPERIMENTS.md](MODEL-EXPERIMENTS.md) and [SPONSOR-GATES.md](SPONSOR-GATES.md).
 
-No payment method, paid plan, cloud deployment, public report, contest submission, or push was created. The user authorized one initial local source commit to enable Entire's anchor-dependent features; a separate local receipt records its observed outcome. No credentials were copied from another project. The local app, worker and Temporal dev server may remain running for review; stop the two npm terminals with Ctrl-C and stop the workspace Temporal CLI process when finished. Default `npm run dev` uses the direct path unless `TEMPORAL_ADDRESS` is explicitly supplied.
+## Entire and authorization
 
-## Research consequence
+Entire console sign-in succeeded via the existing GitHub provider after Google returned an email collision. A fresh billing view showed $0 and automatic top-up off; no grant was verified. No billing change, hosted agent run or CLI upload occurred. Current [billing documentation](https://docs.entire.com/billing) describes a $100/90-day trial after verified-card setup, replacing an earlier observed pause notice.
 
-[Skip The Boards](https://skiptheboards.com/jobs/3cbe4ca5f05f-software-engineer-intern-winter-2027-notion) describes regular first-party rechecks and removing disappeared listings. [Software Internships](https://swe-internships.pages.dev/) describes checking employer boards and retaining unreachable roles as unverified. These product pages establish that source rechecking is already an advertised mechanism; their actual reliability was not audited. Do not claim novelty for that mechanism. The proposed differentiation is the user-triggered investigation artifact, preserved history, recovery evidence and honest model experiments, still requiring comparative validation.
+One explicitly authorized base commit exists: `f7c1db65cb1533bffc8ce53c9e8f7916a7886362`. The user subsequently authorized committing the integration changes and pushing source history to the private `himanshu748/vacancy-autopsy` repository. The remote is configured; Git history and the local delivery receipt identify the pushed revision. No deployment, public report, contest submission or payment was created. Entire checkpoints remain local and normal hook approval remains required. See [ENTIRE.md](ENTIRE.md).
 
-Community research also reinforced explicit idempotent activity behavior: [Understanding At-Least-Once Execution and Why It Matters for Workflow & Agent Developers](https://dev.to/diagrid/understanding-at-least-once-execution-and-why-it-matters-for-workflow-developers-3nen) by [@diagrid](https://dev.to/diagrid) discusses the gap between a side effect and recording completion. The recovery test deliberately interrupts that gap. [Read the full DEV discussion](https://dev.to/diagrid/understanding-at-least-once-execution-and-why-it-matters-for-workflow-developers-3nen). Temporal implementation choices were checked against its own primary documentation as well.
+## Research limits
 
-## Subsequent account access
-
-On October 30, 2026, the user explicitly requested Google sign-in using their Gmail account. Tinker authenticated the requested account, and its balance page was inspected with auto-reload disabled. Private account balances and screenshots are excluded from shareable source. No billing setting was changed, no API key was created, and no Vacancy Autopsy model run occurred. Account access is verified; it does not satisfy the Tinker fine-tuning/benchmark gate.
+Source rechecking is already advertised by products such as [Skip The Boards](https://skiptheboards.com/jobs/3cbe4ca5f05f-software-engineer-intern-winter-2027-notion) and [Software Internships](https://swe-internships.pages.dev/). Their reliability was not audited. Do not claim novelty for the mechanism. The proposed distinction is a user-triggered, reproducible investigation artifact with preserved history; comparative value remains unvalidated.

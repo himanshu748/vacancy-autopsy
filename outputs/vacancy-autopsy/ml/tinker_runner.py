@@ -26,7 +26,13 @@ from metrics import extraction_metrics
 def prompt_tokens(tokenizer: Any, row: dict[str, Any]) -> list[int]:
     # This runner is restricted to the Qwen family; use its chat template and
     # disable optional thinking identically for train, baseline, and checkpoint.
-    return tokenizer.apply_chat_template(messages(row), tokenize=True, add_generation_prompt=True, enable_thinking=False)
+    tokens = tokenizer.apply_chat_template(messages(row), tokenize=True, add_generation_prompt=True,
+                                           enable_thinking=False, return_dict=False)
+    # Transformers versions differ in the default return shape. Counting a
+    # mapping's keys can hide long inputs and cannot form a training sequence.
+    if not isinstance(tokens, list) or not tokens or any(type(token) is not int or token < 0 for token in tokens):
+        raise DataError("Chat template must return a nonempty flat list of nonnegative token IDs")
+    return tokens
 
 
 def preflight(args, splits, frozen) -> dict[str, Any]:

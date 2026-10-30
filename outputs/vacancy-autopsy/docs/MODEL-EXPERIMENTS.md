@@ -4,6 +4,14 @@
 
 Local experiment infrastructure is implemented and tested. Extraction now has 297 captured public-source records and a frozen employer/template holdout; this is not a priority/stale-ad dataset. No sponsor model run or trained checkpoint has completed. Synthetic unit tests validate logic only. No model improvement, production accuracy, Tinker qualification, or TabPFN qualification is claimed. The live TypeScript investigation flow remains deterministic.
 
+## Executed local compatibility and token preflight
+
+The isolated local environment imported Tinker 0.36.0 and verified 14 SDK signatures/type constructions with sockets disabled. No service client was constructed. Transformers 5.22.1 and the real Qwen/Qwen3-8B tokenizer exposed a mapping-return compatibility bug: the runner now explicitly requests `return_dict=False` and validates a flat nonnegative token-ID list. The 47-test Python suite includes that regression. No model weights or provider outputs were downloaded.
+
+On all 297 frozen rows, a 4,096-token cap rejects 36/97 training rows and 97/100 test rows. An explicit 16,384-token cap fits every row, but this is local shape/context evidence only. Planned training input is 339,094 tokens; worst-case base-plus-tuned validation is 422,916 and test comparison is 1,018,428. Each stage exceeds its default 100,000-token ceiling. Provider model/context availability, rates, budget authorization, training and evaluation remain unverified. The runner must refuse rather than truncate or raise a budget silently.
+
+Receipts remain private under `work/model-provider-sdk-proof.json`, `work/model-preflight-4096.json`, `work/model-preflight-16384.json` and `work/model-provider-preflight-status.json`. Earlier preflights that counted mapping keys were retained with `counts_valid: false`; their token totals are invalid. TabPFN client import remains unverified after a bounded dependency download timed out. No background download remains. The extraction corpus cannot supply the missing independently verified priority classes, and no learned ranking is served in the app.
+
 ## What is being predicted
 
 Priority target `1`: the exact advertised posting was absent from a successfully validated, complete public employer board response at the recorded check time. Target `0`: the exact posting was present. Access failures, rate limits, malformed feeds, partial data, and uncertain identity are excluded. Absence does not establish fraudulent employer intent, a fake job, or a previous removal. A prior positive observation is required for a removal claim.

@@ -1331,3 +1331,19 @@ footer {
     scroll-behavior: auto !important;
   }
 }
+
+.source-tools { margin-top: 20px; border-top: 1px solid var(--line, #d9d7ca); padding-top: 15px; font-size: 13px; }
+.source-tools summary { cursor: pointer; font-weight: 600; color: #28432b; display: flex; justify-content: space-between; gap: 12px; }
+.source-tool-content { padding-top: 16px; display: grid; gap: 18px; }
+.source-tool-content form { display: grid; gap: 10px; }
+.source-tool-content input { width: 100%; border: 1px solid #c7c7b8; background: #fffdf7; border-radius: 6px; padding: 11px; font: inherit; color: #243b2a; }
+.source-tool-content p { line-height: 1.7; margin-bottom: 10px; }
+.source-candidates { list-style: none; padding: 0; display: grid; gap: 14px; }
+.source-candidates li { border-left: 2px solid #a5b49b; padding-left: 12px; overflow-wrap: anywhere; }
+.source-candidates small { display: block; color: #515d4d; margin: 5px 0; }
+.capture-tool { border-top: 1px solid #d9d7ca; padding-top: 14px; }
+.capture-preview { max-width: 100%; max-height: 350px; object-fit: contain; border: 1px solid #d9d7ca; margin: 10px 0; }
+.reviewer-panel { border-top: 1px solid #d9d7ca; margin: 18px 0; line-height: 1.7; font-size: 13px; }
+.reviewer-panel p { margin: 6px 0 10px; }
+.reviewer-panel button { margin: 8px 8px 8px 0; }
+.reviewer-panel code { overflow-wrap: anywhere; }

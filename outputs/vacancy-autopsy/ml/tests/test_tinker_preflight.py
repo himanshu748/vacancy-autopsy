@@ -7,14 +7,15 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from tinker_runner import preflight
+from data import DataError
+from tinker_runner import preflight, prompt_tokens
 
 
 class CountingTokenizer:
     eos_token_id = 9
 
     def apply_chat_template(self, messages, **kwargs):
-        assert kwargs == {"tokenize": True, "add_generation_prompt": True, "enable_thinking": False}
+        assert kwargs == {"tokenize": True, "add_generation_prompt": True, "enable_thinking": False, "return_dict": False}
         return [1] * (4000 if "long" in messages[-1]["content"] else 100)
 
     def encode(self, _text, **kwargs):
@@ -23,6 +24,13 @@ class CountingTokenizer:
 
 
 class PreflightTests(unittest.TestCase):
+    def test_chat_template_mapping_or_malformed_tokens_are_refused(self):
+        row = {"advertisement_url": "https://example.com/jobs/123", "advertisement_text": "example"}
+        for output in ({"input_ids": [1, 2], "attention_mask": [1, 1]}, [], [[1]], [True], [-1], ["1"]):
+            tokenizer = types.SimpleNamespace(apply_chat_template=unittest.mock.Mock(return_value=output))
+            with self.subTest(output=output), self.assertRaisesRegex(DataError, "flat list"):
+                prompt_tokens(tokenizer, row)
+
     def test_all_rows_retained_and_generation_allowance_blocks_long_heldout(self):
         def row(identity):
             return {"id": identity, "advertisement_url": "https://example.com/jobs/123",

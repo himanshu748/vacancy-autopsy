@@ -3,25 +3,69 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { createApp } from './app.js';
-import { LocalStore, MongoStore } from './store.js';
+import { LocalStore, MongoStore, type InvestigationStore } from './store.js';
 import { createTemporalExecutor } from '../temporal/client.js';
+import { initializeObservability, flushObservability } from './observability.js';
+import { LocalArtifactStore } from './research.js';
+import { createAuth0Verifier } from './auth.js';
+import { LocalApprovalStore } from './approvals.js';
+import { connectMongoWorkspace, type MongoWorkspace } from './mongo-workspace.js';
+import { onceCleanup, settleCleanup } from './shutdown.js';
+import { publicUrlSchema } from './schemas.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const port = z.coerce.number().int().min(1).max(65535).parse(process.env.PORT ?? 8787);
-const host = process.env.HOST ?? '127.0.0.1';
+const publicOrigin = process.env.PUBLIC_ORIGIN || undefined;
+const host = process.env.HOST ?? (publicOrigin ? '0.0.0.0' : '127.0.0.1');
 let app: Awaited<ReturnType<typeof createApp>> | undefined;
 let durableExecutor: Awaited<ReturnType<typeof createTemporalExecutor>> | undefined;
+let workspace: MongoWorkspace | undefined;
+let store: InvestigationStore | undefined;
+let closeApprovals: () => Promise<void> = async () => {};
 try {
-  const store = process.env.MONGODB_URI
+  if (!['127.0.0.1', 'localhost', '::1'].includes(host) && !publicOrigin) throw new Error('Network binding requires authenticated hosted mode.');
+  if (publicOrigin && (!process.env.MONGODB_URI || !process.env.AUTH0_ISSUER_BASE_URL || !process.env.AUTH0_AUDIENCE || !process.env.AUTH0_CLIENT_ID)) {
+    throw new Error('Hosted mode requires persistent MongoDB and complete Auth0 configuration.');
+  }
+  if (publicOrigin) {
+    const parsed = new URL(publicUrlSchema.parse(publicOrigin));
+    if (parsed.pathname !== '/' || parsed.search || parsed.hash) throw new Error('Hosted origin must not contain a path or query.');
+  }
+  const sentryEnabled = initializeObservability({ dsn: process.env.SENTRY_DSN, environment: process.env.SENTRY_ENVIRONMENT });
+  const dataDirectory = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(root, 'data');
+  const reviewValues = [process.env.AUTH0_ISSUER_BASE_URL, process.env.AUTH0_AUDIENCE];
+  if (reviewValues.some(Boolean) && !reviewValues.every(Boolean)) throw new Error('Complete Auth0 configuration is required.');
+  const authenticator = process.env.AUTH0_ISSUER_BASE_URL && process.env.AUTH0_AUDIENCE
+    ? createAuth0Verifier({ issuer: process.env.AUTH0_ISSUER_BASE_URL, audience: process.env.AUTH0_AUDIENCE }) : undefined;
+  if (process.env.MONGODB_URI) workspace = await connectMongoWorkspace(process.env.MONGODB_URI, process.env.MONGODB_DATABASE ?? 'vacancy_autopsy');
+  const reviewer = process.env.AUTH0_ISSUER_BASE_URL && process.env.AUTH0_AUDIENCE ? {
+    issuer: process.env.AUTH0_ISSUER_BASE_URL, audience: process.env.AUTH0_AUDIENCE, clientId: process.env.AUTH0_CLIENT_ID,
+    authenticator: authenticator!,
+    approvals: workspace?.approvals ?? new LocalApprovalStore(resolve(dataDirectory, 'approvals')),
+  } : undefined;
+  if (reviewer) {
+    closeApprovals = onceCleanup(reviewer.approvals.close.bind(reviewer.approvals));
+    reviewer.approvals.close = closeApprovals;
+  }
+  store = process.env.MONGODB_URI
     ? await MongoStore.connect(process.env.MONGODB_URI, process.env.MONGODB_DATABASE ?? 'vacancy_autopsy')
-    : new LocalStore(process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(root, 'data'));
+    : new LocalStore(dataDirectory);
+  store.close = onceCleanup(store.close.bind(store));
   durableExecutor = process.env.TEMPORAL_ADDRESS ? await createTemporalExecutor({ store,
     address: process.env.TEMPORAL_ADDRESS, namespace: process.env.TEMPORAL_NAMESPACE,
     taskQueue: process.env.TEMPORAL_TASK_QUEUE }) : undefined;
+  if (durableExecutor) durableExecutor.close = onceCleanup(durableExecutor.close.bind(durableExecutor));
   app = await createApp({ store, staticDirectory: resolve(root, 'dist'), logger: true,
-    executeInvestigation: durableExecutor?.execute });
-  app.addHook('onClose', async () => durableExecutor?.close());
-  const shutdown = async () => { await app?.close(); process.exit(0); };
+    executeInvestigation: durableExecutor?.execute, sentryEnabled, reviewer, publicOrigin,
+    research: { artifacts: workspace?.artifacts ?? new LocalArtifactStore(resolve(dataDirectory, 'sources')),
+      discovery: { apiKey: process.env.SERPAPI_API_KEY },
+      capture: { apiKey: process.env.BROWSERBASE_API_KEY, projectId: process.env.BROWSERBASE_PROJECT_ID } } });
+  app.addHook('onClose', async () => { await settleCleanup([async () => durableExecutor?.close(), async () => workspace?.close()]); });
+  const shutdown = async () => {
+    const stopped = await settleCleanup([async () => app?.close()]);
+    const closed = await settleCleanup([async () => durableExecutor?.close(), closeApprovals, async () => workspace?.close(), async () => store?.close(), flushObservability]);
+    process.exit(stopped && closed ? 0 : 1);
+  };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
   await app.listen({ host, port });
@@ -29,7 +73,7 @@ try {
 catch {
   // Avoid printing driver errors or a credential-bearing URI.
   console.error('Vacancy Autopsy could not start. Check the port and storage configuration.');
-  await app?.close();
-  if (!app) await durableExecutor?.close();
+  await settleCleanup([async () => app?.close()]);
+  await settleCleanup([async () => durableExecutor?.close(), closeApprovals, async () => workspace?.close(), async () => store?.close()]);
   process.exitCode = 1;
 }

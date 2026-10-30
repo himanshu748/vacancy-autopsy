@@ -1,13 +1,16 @@
-import Fastify, { LogController } from 'fastify';
+import Fastify, { LogController, type FastifyRequest } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import type { Health, SponsorStatus, Investigation, InvestigationInput } from '../shared/types.js';
-import { investigationInputSchema, reportIdSchema } from './schemas.js';
+import { investigationInputSchema, publicUrlSchema, reportIdSchema } from './schemas.js';
 import { runInvestigation } from './workflow.js';
 import { StorageFullError, type InvestigationStore } from './store.js';
 import type { Fetcher } from './ats.js';
+import { registerResearchRoutes, type ResearchOptions } from './research.js';
+import { registerApprovalRoutes, type ApprovalRouteOptions } from './approvals.js';
+import { ReviewAuthorizationError } from './auth.js';
 
 export interface AppOptions {
   store: InvestigationStore;
@@ -15,29 +18,41 @@ export interface AppOptions {
   staticDirectory?: string;
   logger?: boolean;
   rateLimit?: number;
+  research?: ResearchOptions;
+  reviewer?: Omit<ApprovalRouteOptions, 'reports'> & { issuer: string; audience: string; clientId?: string };
+  sentryEnabled?: boolean;
+  /** Optional Auth0-protected single workspace; never enables anonymous APIs. */
+  publicOrigin?: string;
   /** Optional durable executor owns persistence; the local path saves below. */
   executeInvestigation?: (input: InvestigationInput, options?: { previousInvestigationId?: string; signal?: AbortSignal }) => Promise<Investigation>;
 }
 
-/** Local single-user API. Public, multi-tenant hosting requires authentication. */
+/** Local desk by default; optional hosted access is one permissioned workspace. */
 export async function createApp(options: AppOptions) {
+  let publicOrigin: string | undefined;
+  if (options.publicOrigin) {
+    const parsed = new URL(publicUrlSchema.parse(options.publicOrigin));
+    if (parsed.pathname !== '/' || parsed.search || parsed.hash || !options.reviewer?.clientId) {
+      throw new Error('Hosted mode requires an HTTPS origin and complete reviewer authentication.');
+    }
+    publicOrigin = parsed.origin;
+  }
   const app = Fastify({
     logger: options.logger ?? false,
     bodyLimit: 96_000,
     requestTimeout: 30_000,
-    connectionTimeout: 10_000,
+    connectionTimeout: 90_000,
     genReqId: () => randomUUID(),
     // Body, source text, and database credentials must never appear in logs.
     logController: new LogController({ disableRequestLogging: true }),
   });
-  // Loopback binding alone does not stop DNS rebinding. This baseline is a
-  // single-user local app; authenticated public hosting is a separate gate.
+  // Host checks prevent rebinding; hosted APIs additionally require signed JWTs.
   const loopbackHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
   app.addHook('onRequest', async (request, reply) => {
     let host: URL;
     try { host = new URL(`http://${request.headers.host ?? ''}`); }
     catch { return reply.code(403).send({ error: 'This investigation desk accepts local requests only.' }); }
-    if (!loopbackHosts.has(host.hostname) || host.username || host.password) {
+    if ((!loopbackHosts.has(host.hostname) && (!publicOrigin || host.host !== new URL(publicOrigin).host)) || host.username || host.password) {
       return reply.code(403).send({ error: 'This investigation desk accepts local requests only.' });
     }
     const origin = request.headers.origin;
@@ -47,20 +62,50 @@ export async function createApp(options: AppOptions) {
       let parsed: URL;
       try { parsed = new URL(origin); }
       catch { return reply.code(403).send({ error: 'This request did not originate at the local investigation desk.' }); }
-      if (parsed.origin !== origin || parsed.protocol !== 'http:' || !loopbackHosts.has(parsed.hostname) || !new Set(['5173', apiPort]).has(parsed.port)) {
+      const allowed = publicOrigin ? parsed.origin === publicOrigin : parsed.protocol === 'http:' && loopbackHosts.has(parsed.hostname) && new Set(['5173', apiPort]).has(parsed.port);
+      if (parsed.origin !== origin || !allowed) {
         return reply.code(403).send({ error: 'This request did not originate at the local investigation desk.' });
       }
     }
   });
-  await app.register(rateLimit, { max: options.rateLimit ?? 30, timeWindow: '1 minute' });
+  await app.register(rateLimit, { global: !publicOrigin, max: options.rateLimit ?? 30, timeWindow: '1 minute' });
+  const principals = new WeakMap<FastifyRequest, string>();
+  const workspaceLimit = app.createRateLimit({ max: options.rateLimit ?? 30, timeWindow: '1 minute',
+    keyGenerator: (request) => `workspace:${principals.get(request) ?? 'no_verified_principal'}` });
+  const rejectedAuthLimit = app.createRateLimit({ max: 60, timeWindow: '1 minute',
+    keyGenerator: (request) => `failed-auth:${request.ip}` });
+  if (publicOrigin) app.addHook('onRequest', async (request, reply) => {
+    const path = request.url.split('?')[0];
+    const publicRead = ['GET', 'HEAD'].includes(request.method) &&
+      (['/', '/api/health', '/api/reviewer-config', '/favicon.ico'].includes(path) ||
+        /^\/assets\/[A-Za-z0-9_.-]+$/.test(path) || /^\/fonts\/[A-Za-z0-9_.-]+\.(ttf|woff2?)$/.test(path));
+    if (publicRead) return;
+    try {
+      const principal = await options.reviewer!.authenticator.verify(request.headers.authorization);
+      principals.set(request, principal.subjectHash);
+    }
+    catch (error) {
+      const limit = await rejectedAuthLimit(request);
+      if (!limit.isAllowed && limit.isExceeded) return reply.code(429).send({ error: 'Too many unsuccessful sign-in requests. Please wait.' });
+      const status = error instanceof ReviewAuthorizationError ? error.statusCode : 503;
+      if (status === 401) reply.header('www-authenticate', 'Bearer');
+      return reply.code(status).send({ error: status === 403 ? 'This account does not have workspace access.' : status === 401 ? 'Sign in to access this private workspace.' : 'Workspace authentication is temporarily unavailable.' });
+    }
+    const limit = await workspaceLimit(request);
+    if (!limit.isAllowed && limit.isExceeded) {
+      reply.header('retry-after', String(limit.ttlInSeconds));
+      return reply.code(429).send({ error: 'This reviewer has reached the workspace request limit. Please wait.' });
+    }
+  });
   let successfulWorkflowRuns = 0;
   let activeChecks = 0;
+  const reviewerOrigin = options.reviewer ? new URL(options.reviewer.issuer).origin : '';
 
   app.addHook('onSend', async (_request, reply) => {
     reply.header('x-content-type-options', 'nosniff');
     reply.header('referrer-policy', 'no-referrer');
     reply.header('cross-origin-resource-policy', 'same-origin');
-    reply.header('content-security-policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    reply.header('content-security-policy', `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ${reviewerOrigin}; frame-src 'self' ${reviewerOrigin}; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`);
     if (_request.url.startsWith('/api/')) reply.header('cache-control', 'no-store');
   });
   app.setErrorHandler((error, _request, reply) => {
@@ -88,14 +133,20 @@ export async function createApp(options: AppOptions) {
       pending('Tinker', 'Fine-tuning and extraction benchmarks have not run.'),
       pending('TabPFN', 'The prediction model is not in this investigation path.'),
       pending('Render', 'No hosted deployment has been verified.'),
-      pending('SerpApi', 'Discovery search is not implemented in this local baseline.'),
-      pending('Browserbase', 'No remote browser capture is performed.'),
+      { name: 'SerpApi', status: options.research?.discovery?.apiKey ? 'configured_unverified' : 'not_configured', detail: 'Bounded source discovery is implemented. Live provider evidence is tracked separately.' },
+      { name: 'Browserbase', status: options.research?.capture?.apiKey ? 'configured_unverified' : 'not_configured', detail: 'Private browser-artifact capture is implemented. A successful live capture is still required.' },
       { name: 'Temporal', status: options.executeInvestigation ? (successfulWorkflowRuns > 0 ? 'local_verified' : 'configured_unverified') : 'not_configured',
         detail: options.executeInvestigation ? 'A local durable executor is selected. Historical crash-recovery evidence is recorded separately in docs/TEMPORAL.md.' : 'Direct local execution is selected; Temporal is optional. See docs/TEMPORAL.md for the tested local recovery path.' },
-      pending('Sentry', 'No provider trace has been captured.'),
-      pending('Auth0', 'Reports remain private; authenticated publication is not implemented.'),
+      { name: 'Sentry', status: options.sentryEnabled ? 'configured_unverified' : 'not_configured', detail: 'Workflow and tool spans are implemented with content collection disabled. A provider trace receipt is required.' },
+      { name: 'Auth0', status: options.reviewer ? 'configured_unverified' : 'not_configured', detail: 'Digest-bound private reviewer approval is implemented. Live Auth0 verification remains a separate gate.' },
     ] };
   });
+  await registerResearchRoutes(app, options.research);
+  app.get('/api/reviewer-config', async () => options.reviewer?.clientId
+    ? { configured: true, requiresAuthentication: Boolean(publicOrigin), issuer: options.reviewer.issuer, audience: options.reviewer.audience, clientId: options.reviewer.clientId }
+    : { configured: false, requiresAuthentication: false });
+  app.get('/api/workspace', async () => ({ authorized: true, visibility: 'private_workspace' }));
+  if (options.reviewer) await registerApprovalRoutes(app, { ...options.reviewer, reports: options.store });
   app.get('/api/investigations', async () => options.store.list());
 
   app.post('/api/investigations', async (request, reply) => {

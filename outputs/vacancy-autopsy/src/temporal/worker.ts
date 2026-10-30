@@ -6,8 +6,11 @@ import { cancellationSignal, heartbeat } from '@temporalio/activity';
 import { LocalStore, MongoStore } from '../server/store.js';
 import { createActivities } from './activities.js';
 import { DEFAULT_TASK_QUEUE, type DurableRequest } from './contracts.js';
+import { initializeObservability, flushObservability } from '../server/observability.js';
+import { settleCleanup } from '../server/shutdown.js';
 
 async function main() {
+  initializeObservability({ dsn: process.env.SENTRY_DSN, environment: process.env.SENTRY_ENVIRONMENT });
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const address = process.env.TEMPORAL_ADDRESS ?? '127.0.0.1:7233';
   if (!/^(127\.0\.0\.1|localhost):\d{1,5}$/.test(address)) throw new Error('Only local Temporal is supported.');
@@ -36,8 +39,8 @@ async function main() {
     process.once('SIGTERM', () => worker.shutdown());
     await worker.run();
   } finally {
-    await store.close();
-    await connection?.close();
+    const closed = await settleCleanup([() => store.close(), async () => connection?.close(), flushObservability]);
+    if (!closed) throw new Error('Worker resources could not all close cleanly.');
   }
 }
 
