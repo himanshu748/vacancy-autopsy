@@ -166,3 +166,41 @@ The existing private checkpoint was separately verified after a 90-day TTL exten
 - [Tinker billing usage and lag](https://tinker-docs.thinkingmachines.ai/tinker/cli/billing/)
 
 Optional requirements pin `tabpfn-client==0.7.0` and `tinker==0.36.0`. Tinker 0.36.0 made the real requests reported above; earlier offline compatibility checks remain separate evidence. Recheck package/docs compatibility before another run. The TabPFN API path needs no local model weights or local-weight license acceptance.
+
+## November 1 cost and latency extension
+
+On November 1, 2026, `ml/bench_cost_latency.py` executed the unchanged frozen Greenhouse validation set and the complete exploratory OppIDX set with the existing private checkpoint, base Qwen3-8B, and a larger Qwen baseline. Every model used the same prompt messages and four-field JSON schema, temperature 0, disabled thinking and a 512-token completion ceiling. Inputs were not truncated, no model was retrained, and malformed answers remained errors. Native tokenizers/chat templates differ between model families; the per-row message hashes are retained.
+
+The live capabilities response did not offer Qwen3-32B, which the current documentation lists as retired. The selected baseline was the largest available Qwen by published total parameters: **Qwen3.5-397B-A17B**, a mixture-of-experts model with 17B active parameters. The [official machine-readable rates](https://tinker-docs.thinkingmachines.ai/tinker/models.json) were $0.195 input / $0.60 output per million tokens for Qwen3-8B, and $1.65 / $7.50 for the larger model. These are gross uncached inference estimates from actual submitted input tokens and returned output tokens, not an invoice, hosting cost or training-cost amortization.
+
+Latency measures one remote sample call through its result, including network/provider queue time and excluding client/tokenizer setup and decoding. It is **completed-pass latency**, measured serially once per row. The parser runs locally, so its timing is not a hosted-service comparison. Percentiles use linear interpolation at `(n-1) × q`. There is no measured latency improvement from fine-tuning in these results.
+
+### Frozen Greenhouse validation: 100 page-text rows
+
+| Model | Exact records | Field micro-F1 | p50 seconds | p95 seconds | Input / output tokens | USD / 1,000 listings |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Tuned Qwen3-8B | 100/100 (100%) | 1.0000 | 2.869 | 3.011 | 160,258 / 4,310 | $0.338363 |
+| Base Qwen3-8B | 80/100 (80%) | 0.9500 | 2.833 | 2.969 | 160,258 / 4,623 | $0.340241 |
+| Qwen3.5-397B-A17B | 91/100 (91%) | 0.9775 | 2.851 | 2.986 | 159,778 / 5,369 | $3.039012 |
+| Deterministic parser | 99/100 (99%) | 0.9975 | 0.000044 | 0.000064 | 0 / 0 | n/a |
+
+### Frozen exploratory OppIDX advertisements: 20 rows
+
+| Model | Exact records | Field micro-F1 | p50 seconds | p95 seconds | Input / output tokens | USD / 1,000 listings |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Tuned Qwen3-8B | 18/20 (90%) | 0.9750 | 2.862 | 2.970 | 31,086 / 849 | $0.328559 |
+| Base Qwen3-8B | 20/20 (100%) | 1.0000 | 2.833 | 2.945 | 31,086 / 969 | $0.332159 |
+| Qwen3.5-397B-A17B | 20/20 (100%) | 1.0000 | 2.854 | 3.124 | 30,709 / 1,069 | $2.934368 |
+| Deterministic parser | 0/20 (0%) | 0.0000 | 0.000056 | 0.000085 | 0 / 0 | n/a |
+
+The tuned model preserved all validation records; the larger model preserved 91/100 at approximately **8.98 times the tuned model’s quoted token cost**. This is a narrow validation result, with similar measured latency. On the actual third-party advertisements, **both the larger model and the base 8B reached 20/20 while the tuned model remained at 18/20**. The earlier regression is reproduced, not repaired or hidden. The deterministic parser reached 99/100 validation records and failed all exact-record comparisons on this third-party template. These two small, two-employer sets do not establish broad extraction superiority or production generalization.
+
+### Retained timeout and completion pass
+
+The first pass ended with `TimeoutError` during the nineteenth base-model advertisement request: 239 logical samples were submitted and 238 responses were retained. Its local wait was configured for 60 seconds and its run alarm for 1,800 seconds; the receipt does not distinguish which timeout source fired. The final accepted/result state of that request remains unknown, and its full maximum token cost remains reserved. No missing answer was fabricated.
+
+The complete replacement base pass was declared as primary before any replacement-base result, regardless of its outcome. A second pass made the first 120 larger-model requests and a new complete 120-row base comparison, with 180-second waits and a one-hour alarm. A local wait expiry observes the same pending future instead of submitting another sample. The primary table uses all 120 initial tuned responses and all 120 responses from each completed second-pass model; it does not cherry-pick the first base pass. Its latency percentiles exclude the retained failed pass and do not establish failure-inclusive latency or reliability.
+
+The final comparison contains **360 primary provider responses plus 120 parser calls**, with all 480 primary results retained. Across both attempts, there were 479 submitted samples, 478 known responses and one unconfirmed submission. Primary uncached inference cost is estimated at **$0.44366331**. Including the repeated base work, the all-attempt estimate is **$0.48366468 to $0.48427725**, with the upper end reserving the unknown request at its full output ceiling. The pre-submission all-attempt worst-case guard was **$0.99701805**, below the approved $3 cap. No billing, plan, checkpoint or automatic top-up setting changed.
+
+Workspace receipts are `outputs/evidence/tinker-cost-latency.json`, `tinker-cost-latency-attempt-1.json`, `tinker-cost-latency-attempt-2.json`, `tinker-cost-latency-preflight.json`, `tinker-cost-latency-completion-intent.json` and `tinker-cost-latency-harness-tests.json`. They retain exact per-row outputs, observed tokens/latency, source hashes, pricing/capability evidence, the failed attempt and completion-selection provenance without credentials or checkpoint paths. The harness refuses reusing an attempted output path. Its `compose_attempts()` helper validates complete frozen row alignment and retained cost reservations before building the combined receipt.
