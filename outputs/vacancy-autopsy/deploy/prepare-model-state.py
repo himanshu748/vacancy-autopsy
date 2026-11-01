@@ -70,11 +70,30 @@ def parse_metadata(content: bytes, stage: str) -> dict:
         raise StartupError(f"{stage}_INVALID_JSON") from None
 
 
-def preserve(path: Path, content: bytes, stage: str) -> None:
+def restore_frozen_state(path: Path, content: bytes) -> None:
+    """Atomically install already validated bytes; never rewrite runtime state."""
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="wb", prefix=".restore-", dir=path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def preserve(path: Path, content: bytes, stage: str, *, restore_state_final_lf: bool = False) -> None:
     try:
         if path.exists():
-            if read_metadata(path, 64_000, stage) != content:
-                raise StartupError(f"{stage}_CHANGED")
+            existing = read_metadata(path, 64_000, stage)
+            if existing != content:
+                if restore_state_final_lf and stage == "PERSISTED_STATE" and existing + b"\n" == content:
+                    restore_frozen_state(path, content)
+                else:
+                    raise StartupError(f"{stage}_CHANGED")
             return
         with path.open("xb") as handle:
             os.chmod(path, 0o600)
@@ -117,7 +136,11 @@ def prepare(root: Path = ROOT, secrets: Path = SECRETS) -> None:
     if not isinstance(expected_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
         raise StartupError("CONTEXT_HASH_INVALID")
     if hashlib.sha256(state_bytes).hexdigest() != expected_hash:
-        raise StartupError("STATE_HASH_MISMATCH")
+        # Render's textarea transport can omit one final LF. Restore only that
+        # exact byte when it reproduces the original reviewed checksum.
+        if hashlib.sha256(state_bytes + b"\n").hexdigest() != expected_hash:
+            raise StartupError("STATE_HASH_MISMATCH")
+        state_bytes += b"\n"
     priority = root / "priority"
     try:
         priority.mkdir(mode=0o700, exist_ok=True)
@@ -133,8 +156,13 @@ def prepare(root: Path = ROOT, secrets: Path = SECRETS) -> None:
                 raise StartupError("CONTEXT_STATE_INVALID") from None
     except OSError:
         raise StartupError("PERSISTENCE_UNWRITABLE") from None
-    preserve(priority / state_name, state_bytes, "PERSISTED_STATE")
-    preserve(priority / "model-context.json", context_bytes, "PERSISTED_CONTEXT")
+    context_path = priority / "model-context.json"
+    if context_path.exists():
+        # A changed frozen context must block even the narrowly permitted
+        # bootstrap-state restoration before it mutates persisted bytes.
+        preserve(context_path, context_bytes, "PERSISTED_CONTEXT")
+    preserve(priority / state_name, state_bytes, "PERSISTED_STATE", restore_state_final_lf=True)
+    preserve(context_path, context_bytes, "PERSISTED_CONTEXT")
     try:
         load_context(priority / "model-context.json")
     except Exception:

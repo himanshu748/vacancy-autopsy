@@ -123,6 +123,100 @@ class ModelStartupTests(unittest.TestCase):
         self.assert_code("STATE_HASH_MISMATCH")
         self.assertEqual(list(self.root.iterdir()), [])
 
+    def reviewed_state_with_final_lf(self):
+        state = (self.secrets / "priority-model-state.json").read_bytes() + b'\n'
+        self.context["model_state_sha256"] = hashlib.sha256(state).hexdigest()
+        context = json.dumps(self.context).encode()
+        (self.secrets / "priority-context.json").write_bytes(context)
+        return state, context
+
+    def test_missing_single_final_lf_is_reconstructed_only_by_exact_reviewed_hash(self):
+        state, context = self.reviewed_state_with_final_lf()
+        self.prepare()  # The textarea-transmitted secret is still missing its LF.
+        self.assertEqual((self.root / "priority" / "model.json").read_bytes(), state)
+        self.assertEqual((self.root / "priority" / "model-context.json").read_bytes(), context)
+        self.assertEqual((self.secrets / "priority-model-state.json").read_bytes(), state[:-1])
+        self.assertEqual(hashlib.sha256(state).hexdigest(), self.context["model_state_sha256"])
+
+    def test_old_bootstrap_state_recovers_without_touching_accepted_or_uncertain_operations(self):
+        state, context = self.reviewed_state_with_final_lf()
+        priority = self.root / "priority"; priority.mkdir()
+        (priority / "model.json").write_bytes(state[:-1])
+        (priority / "model-context.json").write_bytes(context)
+        runtime = priority / "runtime"; runtime.mkdir()
+        (runtime / "active.json").write_bytes(b'{"phase":"submitting","accepted":"unknown"}')
+        batch = runtime / "batch"; batch.mkdir()
+        (batch / "pending-model.json").write_bytes(b'accepted provider request bytes')
+        before = {str(path.relative_to(runtime)): path.read_bytes() for path in runtime.rglob('*') if path.is_file()}
+        self.prepare()
+        self.assertEqual((priority / "model.json").read_bytes(), state)
+        self.assertEqual((priority / "model.json").stat().st_mode & 0o777, 0o600)
+        self.assertEqual((priority / "model-context.json").read_bytes(), context)
+        after = {str(path.relative_to(runtime)): path.read_bytes() for path in runtime.rglob('*') if path.is_file()}
+        self.assertEqual(after, before)
+        self.prepare()  # A normal subsequent restart remains idempotent.
+        self.assertEqual((priority / "model.json").read_bytes(), state)
+
+    def test_failed_atomic_restoration_leaves_original_state_and_runtime_intact(self):
+        state, context = self.reviewed_state_with_final_lf()
+        priority = self.root / "priority"; priority.mkdir()
+        path = priority / "model.json"; path.write_bytes(state[:-1])
+        (priority / "model-context.json").write_bytes(context)
+        runtime = priority / "runtime"; runtime.mkdir()
+        marker = runtime / "active.json"; marker.write_bytes(b'accepted operation')
+        with patch.object(os, "replace", side_effect=OSError("private transport failure")):
+            self.assert_code("PERSISTED_STATE_WRITE_FAILED")
+        self.assertEqual(path.read_bytes(), state[:-1])
+        self.assertEqual(marker.read_bytes(), b'accepted operation')
+        self.assertEqual(list(priority.glob('.restore-*')), [])
+        self.prepare()
+        self.assertEqual(path.read_bytes(), state)
+
+    def test_arbitrary_truncation_and_other_whitespace_do_not_pass_the_reviewed_hash(self):
+        state, _ = self.reviewed_state_with_final_lf()
+        path = self.secrets / "priority-model-state.json"
+        cases = ((state[:-1] + b' ', "STATE_HASH_MISMATCH"),
+                 (state[:-1] + b'\r', "STATE_HASH_MISMATCH"),
+                 (state[:-1] + b'\t', "STATE_HASH_MISMATCH"),
+                 (b' ' + state[:-1], "STATE_HASH_MISMATCH"),
+                 (state + b'\n', "STATE_HASH_MISMATCH"),
+                 (state.replace(b'82', b'83'), "STATE_HASH_MISMATCH"),
+                 (state[:-2], "STATE_INVALID_JSON"))
+        for content, code in cases:
+            with self.subTest(content=content[-12:]):
+                path.write_bytes(content)
+                self.assert_code(code)
+                self.assertEqual(list(self.root.iterdir()), [])
+        # Appending a single LF cannot reconstruct a transport loss of two LFs.
+        self.context["model_state_sha256"] = hashlib.sha256(state + b'\n').hexdigest()
+        (self.secrets / "priority-context.json").write_text(json.dumps(self.context))
+        path.write_bytes(state[:-1])
+        self.assert_code("STATE_HASH_MISMATCH")
+
+    def test_other_persisted_corruption_is_never_repaired(self):
+        state, context = self.reviewed_state_with_final_lf()
+        priority = self.root / "priority"; priority.mkdir()
+        path = priority / "model.json"
+        (priority / "model-context.json").write_bytes(context)
+        runtime = priority / "runtime"; runtime.mkdir()
+        marker = runtime / "active.json"; marker.write_bytes(b'uncertain accepted operation')
+        for content in (state[:-1] + b' ', state[:-1] + b'\r', state[:-2], state.replace(b'82', b'83')):
+            with self.subTest(content=content[-12:]):
+                path.write_bytes(content)
+                self.assert_code("PERSISTED_STATE_CHANGED")
+                self.assertEqual(path.read_bytes(), content)
+                self.assertEqual(marker.read_bytes(), b'uncertain accepted operation')
+
+    def test_changed_frozen_context_prevents_even_missing_lf_state_restoration(self):
+        state, context = self.reviewed_state_with_final_lf()
+        priority = self.root / "priority"; priority.mkdir()
+        path = priority / "model.json"; path.write_bytes(state[:-1])
+        stored_context = priority / "model-context.json"
+        stored_context.write_bytes(context + b' ')
+        self.assert_code("PERSISTED_CONTEXT_CHANGED")
+        self.assertEqual(path.read_bytes(), state[:-1])
+        self.assertEqual(stored_context.read_bytes(), context + b' ')
+
     def test_invalid_state_is_rejected_before_persisting_then_corrected_secret_can_start(self):
         path = self.secrets / "priority-model-state.json"
         state = json.loads(path.read_bytes()); state["fit_status"] = "failed"
