@@ -17,3 +17,6 @@ Observed lead: the OppIDX Figma advertisement still presented an Apply link to j
 Naming: Vacancy Autopsy. Tagline: The internet remembers jobs that employers have already removed. This describes the problem hypothesis, not proof that a particular employer removed an opening.
 
 Evidence vocabulary: "Verified open" means the exact posting is in the checked public source at the recorded time, not that a hire will happen. "Not currently listed" means absent from a successfully validated complete public board response, not proved fake or fraudulent. "Inconclusive" covers ambiguous identity, access errors, rate limits, partial data, and unsupported sources. A prior timestamped positive observation is needed to claim that a posting was removed.
+
+
+November 1 release authorization: the user approved committing/pushing the reviewed source, making `himanshu748/vacancy-autopsy` public, releasing its source ZIP and publishing the reviewed DEV entry. These actions completed. The user then withdrew video upload, so the video stays local. They separately requested deleting suspended Render services to free capacity; one suspended free service was removed, leaving one available slot. No payment method, billing change, hosted deployment or real public report release was authorized or performed. The published entry's deployed-link/video demo requirement remains open.

@@ -47,7 +47,7 @@ The Semgrep example was verified open at its recorded check time; the Figma exam
 
 **Choose the next check with TabPFN.** A shortlist lets an applicant compare several openings before investigating them. TabPFN ranks rows using only information available before an official check, including known listing age, repost count, source type and visible ATS-link information. Unknown information stays unknown. The interface shows a relative order, with shared ranks for ties, rather than presenting a model score as the probability that an employer is dishonest. A real browser run ranked two genuine public advertisements, opened the selected URL in the check form, and preserved the shortlist when returning from that check.
 
-**Make the workflow available with Render.** The built frontend, API and durable worker are prepared for hosting, but I have not deployed the service. The existing Render workspace has hackathon credit and is at its service quota. A persistent, authenticated hosted journey remains a release gate. A local app is not being presented as a live Render service.
+**Make the workflow available with Render.** The built frontend, API and durable worker are prepared for hosting, but I have not deployed the service. The existing Render workspace has hackathon credit. I freed one service slot, but the full persistent deployment still requires billing verification. A persistent, authenticated hosted journey remains a release gate. A local app is not being presented as a live Render service.
 
 ### What the models actually improved
 
@@ -107,7 +107,7 @@ I am entering **Best Use of Tinker** and **Best Use of TabPFN** as the featured 
 
 The additional categories are **Best Use of Browserbase**, **Best Use of SerpApi**, **Best Use of Mastra**, **Best Use of Temporal**, **Best Use of MongoDB Atlas**, **Best Use of Sentry Agent Tracing**, and **Best Use of Auth0 for AI Agents**. Nine technologies have meaningful execution evidence; organizer acceptance is not being assumed.
 
-**Render remains a target, not an entered category**, until the actual application is deployed and verified. Its current workspace is full, and the persistent deployment requires payment verification. No unrelated services or billing settings were changed. One project may enter several categories but can win only once in this challenge.
+**Render remains a target, not an entered category**, until the actual application is deployed and verified. Its service-capacity blocker is cleared, but the persistent deployment still requires payment verification. No billing settings were changed. One project may enter several categories but can win only once in this challenge.
 
 
 Agent-session sharing is optional and remains off. No transcript, account screenshot or secret-bearing artifact is included in this article.
