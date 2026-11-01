@@ -20,6 +20,8 @@ Checked against [the HF26 hub](https://dev.to/challenges/hf26) and [Week 4 (even
 
 **Execution count: all ten original sponsors now have meaningful run evidence, plus Ultramarine as an eleventh integration.** SerpApi's exact first-party-counterpart discovery gate remains unmet. This is not a claim of accepted contest categories, production accuracy or multi-tenant SaaS. Temporal remains local. Entire is additional development tooling and is excluded from this count.
 
+The final hosted Browserbase run also completed on Render: a fresh public advertisement capture retained its exact ATS link, DOM and PNG. Selecting that link produced a private two-source investigation. All retained body/PNG hashes matched, and only the newly created session was read to confirm its terminal `COMPLETED` state. Receipt: `outputs/evidence/render-browserbase-receipt.json`. This establishes the hosted capture-to-verification path; SerpApi's separate exact-counterpart discovery gap remains open.
+
 ## Historical account setup observations
 
 The notes below preserve earlier setup observations. Statements about local-only settings, disabled sharing, pending callbacks or an undeployed Render service describe those earlier stages; the current implementation table and hosted receipts above supersede them. No account balance or promotion is inferred from these notes.
