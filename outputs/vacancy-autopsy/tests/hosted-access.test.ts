@@ -36,7 +36,7 @@ test('Hosted workspace protects every investigation, source artifact and review 
       '/api/research/00000000-0000-4000-8000-000000000000/report', '/%61pi/investigations']) {
       assert.equal((await app.inject({ url, headers: host })).statusCode, 401, url);
     }
-    for (const url of ['/api/discovery', '/api/captures', '/api/investigations']) {
+    for (const url of ['/api/discovery', '/api/captures', '/api/investigations', '/api/extract', '/api/priority']) {
       assert.equal((await app.inject({ method: 'POST', url, headers: host, payload: {} })).statusCode, 401, url);
     }
     assert.equal((await app.inject({ url: '/api/health', headers: host })).statusCode, 200);

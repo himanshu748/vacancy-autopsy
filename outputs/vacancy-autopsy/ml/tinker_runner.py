@@ -265,8 +265,20 @@ def main() -> None:
     print(f"Wrote {args.action} artifact to {args.output}")
 
 
-if __name__ == "__main__":
+def run_cli() -> None:
+    """Keep provider exception payloads and credentials out of terminal output."""
     try:
         main()
     except DataError as exc:
-        raise SystemExit(str(exc)) from exc
+        raise SystemExit(str(exc)) from None
+    except KeyboardInterrupt:
+        raise SystemExit("Tinker action interrupted. Inspect retained progress and provider usage before retrying.") from None
+    except Exception as exc:
+        raise SystemExit(
+            f"Tinker action failed ({type(exc).__name__}). Inspect the saved artifact, if present, "
+            "and provider usage before retrying. Provider error details are not printed."
+        ) from None
+
+
+if __name__ == "__main__":
+    run_cli()

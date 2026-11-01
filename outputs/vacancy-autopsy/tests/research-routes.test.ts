@@ -16,7 +16,7 @@ test('Unconfigured source tools fail clearly without creating findings or bypass
     assert.equal((await app.inject({ method: 'POST', url: '/api/captures', payload: { url: 'https://jobs.ashbyhq.com/example/abc' } })).statusCode, 503);
     assert.equal((await app.inject({ method: 'POST', url: '/api/captures', payload: { url: 'https://127.0.0.1/' } })).statusCode, 400);
     assert.equal((await app.inject({ method: 'POST', url: '/api/discovery', headers: { host: 'foreign.example' }, payload: { query: 'intern employer' } })).statusCode, 403);
-    assert.deepEqual((await app.inject('/api/reviewer-config')).json(), { configured: false, requiresAuthentication: false });
+    assert.deepEqual((await app.inject('/api/reviewer-config')).json(), { configured: false, requiresAuthentication: false, sharingEnabled: false });
     assert.deepEqual((await app.inject('/api/investigations')).json(), []);
   } finally { await app.close(); await rm(directory, { recursive: true, force: true }); }
 });

@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
-import type { Investigation, InvestigationInput } from '../shared/types.js';
+import type { Evidence, Investigation, InvestigationInput } from '../shared/types.js';
 import { verifyFeed, hashBody, type Fetcher } from './ats.js';
 import { identify, sanitizeInput } from './identity.js';
 import { evidenceSchema, identitySchema, investigationInputSchema, investigationSchema, timelineSchema } from './schemas.js';
 import { traceOperation, traceSourceOutcome } from './observability.js';
+import type { ArtifactStore } from './research.js';
+import { loadCapturedLinkage } from './capture-linkage.js';
 
 const requestSchema = z.object({ input: investigationInputSchema, previousInvestigationId: z.string().uuid().optional() });
 const identifiedSchema = requestSchema.extend({
@@ -19,7 +21,7 @@ const checkedSchema = identifiedSchema.extend({
     evidence: z.array(evidenceSchema), checkedAt: z.string().datetime() }),
 });
 
-export interface InvestigationOptions { fetcher?: Fetcher; signal?: AbortSignal; previousInvestigationId?: string }
+export interface InvestigationOptions { fetcher?: Fetcher; signal?: AbortSignal; previousInvestigationId?: string; artifacts?: ArtifactStore }
 
 /** A deterministic Mastra workflow. No model call or durable execution is implied. */
 export async function runInvestigation(rawInput: InvestigationInput, options: InvestigationOptions = {}): Promise<Investigation> {
@@ -28,21 +30,29 @@ export async function runInvestigation(rawInput: InvestigationInput, options: In
 
 async function runInvestigationSteps(rawInput: InvestigationInput, options: InvestigationOptions): Promise<Investigation> {
   const input = sanitizeInput(investigationInputSchema.parse(rawInput));
+  // Resolve the reference inside this process (or the Temporal Activity), before
+  // fetching a source. Full DOM/PNG bytes never enter durable workflow input.
+  const capture = await loadCapturedLinkage(input, options.artifacts);
   const extractIdentity = createStep({
     id: 'resolve-posting-identity', inputSchema: requestSchema, outputSchema: identifiedSchema,
     execute: async ({ inputData }) => traceOperation('identity.resolve', async () => {
       const createdAt = new Date().toISOString();
-      const identityResult = identify(inputData.input);
-      const evidence = inputData.input.advertisementText ? [{
+      const identityResult = capture
+        ? { identity: capture.identity, linkageVerified: true }
+        : identify(inputData.input);
+      const evidence: Evidence[] = inputData.input.advertisementText ? [{
         id: randomUUID(), kind: 'advertisement' as const, url: inputData.input.url,
         capturedAt: createdAt, sha256: hashBody(inputData.input.advertisementText),
         body: inputData.input.advertisementText,
         summary: 'User-supplied advertisement text recorded at this time. The original advertisement page was not fetched or independently captured.',
       }] : [];
+      if (capture) evidence.push(capture.evidence);
       return { ...inputData, id: randomUUID(), createdAt, ...identityResult, evidence,
         timeline: [{ name: identityResult.identity ? 'Job identity resolved' : 'Job identity unresolved', status: identityResult.identity ? 'complete' as const : 'warning' as const,
           detail: identityResult.identity ? `Exact ${identityResult.identity.ats} posting ID read from the supplied URL.` : identityResult.warning!,
-          at: createdAt }] };
+          at: createdAt }, ...(capture ? [{ name: 'Advertisement posting link captured', status: 'complete' as const,
+            detail: 'The saved static browser snapshot contains one unique supported ATS posting identity matching this check. A link does not establish employer intent or prior removal.',
+            at: capture.evidence.capturedAt }] : [])] };
     }),
   });
   const checkOfficialSource = createStep({
@@ -65,6 +75,7 @@ async function runInvestigationSteps(rawInput: InvestigationInput, options: Inve
     execute: async ({ inputData }) => traceOperation('evidence.seal', async () => {
       const evidence = [...inputData.evidence, ...inputData.feed.evidence];
       const limitations = [...inputData.feed.limitations];
+      if (capture) limitations.push(...capture.limitations);
       if (inputData.warning) limitations.unshift(inputData.warning);
       if (inputData.input.advertisementText) limitations.push('Pasted advertisement text is user-supplied, not an independent browser capture.');
       limitations.push('URL query strings and fragments were removed before storage to reduce accidental token retention.');
@@ -72,6 +83,7 @@ async function runInvestigationSteps(rawInput: InvestigationInput, options: Inve
       return {
         id: inputData.id, input: inputData.input, createdAt: inputData.createdAt,
         checkedAt: inputData.feed.checkedAt, verdict,
+        ...(inputData.feed.evidence.some(item => item.kind === 'official_feed') ? { sourceObservation: { verdict: inputData.feed.verdict, explanation: inputData.feed.explanation, checkedAt: inputData.feed.checkedAt } } : {}),
         title: inputData.feed.title ?? (inputData.identity ? `Posting ${inputData.identity.jobId}` : 'Unresolved job advertisement'),
         employer: inputData.identity ? `${inputData.identity.board} (board identifier)` : 'Employer not verified',
         ...(inputData.identity ? { jobId: inputData.identity.jobId, ats: inputData.identity.ats, officialUrl: inputData.identity.officialUrl } : {}),

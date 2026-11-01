@@ -239,3 +239,14 @@ test('API accepts durable persistence and preserves linked rechecks without a se
     assert.equal((await app.inject('/api/health')).json().sponsors.find((item: { name: string }) => item.name === 'Temporal').status, 'local_verified');
   } finally { await app.close(); await rm(directory, { recursive: true, force: true }); }
 });
+
+test('A separate employer-source observation remains usable without confirming the supplied advertisement link', async () => {
+  const input = { url: 'https://public-board.org/a-job', officialUrl: url, advertisementText: 'A supplied ad links to '+url };
+  for (const [response, verdict] of [[openFeed, 'verified_open'], [{ jobs: [], meta: { total: 0 } }, 'not_listed']] as const) {
+    const report = await runInvestigation(input, {fetcher: fixture(response)});
+    assert.equal(report.verdict, 'inconclusive');
+    assert.equal(report.sourceObservation?.verdict, verdict);
+    assert.equal(report.sourceObservation?.checkedAt, report.checkedAt);
+    assert.ok(report.evidence.some(item => item.kind === 'official_feed'));
+  }
+});

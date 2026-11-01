@@ -39,7 +39,7 @@ export function digestReport(report: Investigation): string {
   const validated = investigationSchema.strict().parse(report);
   return createHash('sha256').update(`vacancy-autopsy-report-v1\n${canonicalJson(validated)}`).digest('hex');
 }
-function approvalId(reportDigest: string, reviewerHash: string): string {
+export function approvalId(reportDigest: string, reviewerHash: string): string {
   return createHash('sha256').update(`vacancy-autopsy-approval-v1\0${reportDigest}\0${reviewerHash}`).digest('hex');
 }
 export function validatedApproval(record: unknown): ApprovalRecord {

@@ -1,10 +1,10 @@
 # Entire — local development integration
 
-Checked October 30, 2026. Entire supports development evidence; it is not part of the job-verification algorithm. No hosted model, remote repository, Trail, credit purchase or session upload has been run.
+Checked November 1, 2026. Entire supports development evidence; it is not part of the job-verification algorithm. No hosted model, remote repository, Trail, credit purchase or session upload has been run.
 
 ## Applied updates
 
-Latest stable [CLI 0.12.2](https://github.com/entireio/cli/releases/tag/v0.12.2), released October 26, is pinned in `scripts/entire.mjs`. The installer verifies the official archive SHA-256 before extracting two executables, and saves a local receipt. Graph **0.6.0** was installed through Entire's checksum-verifying plugin installer. Downloads, plugin data and caches stay under ignored `.tools/`. Setup also copies the verified CLI to `~/.local/bin/entire` when absent, so standard Codex hooks can find it. An existing executable is never overwritten.
+The latest release API still reports [CLI 0.12.2](https://github.com/entireio/cli/releases/tag/v0.12.2), released October 26, is pinned in `scripts/entire.mjs`. The installer verifies the official archive SHA-256 before extracting two executables, and saves a local receipt. Graph **0.6.0** was installed through Entire's checksum-verifying plugin installer. Downloads, plugin data and caches stay under ignored `.tools/`. Setup also copies the verified CLI to `~/.local/bin/entire` when absent, so standard Codex hooks can find it. An existing executable is never overwritten.
 
 The [October 26 launch](https://entire.com/blog/the-git-forge-for-agent-human-collaboration) adds Trails, distributed Git hosting and Continuous Memory. We apply local Graph and Codex checkpoint configuration. The October 27 Appwrite integration and October 28–29 regional hosting additions do not require replacing the agreed Render architecture. Hosted Trails and Brain retrieval remain unverified.
 
@@ -34,7 +34,7 @@ Automatic session pushing and telemetry are disabled. Betterleaks remains enable
 
 ## The $100 credit
 
-The [Billing documentation](https://docs.entire.com/billing), refreshed October 30, now describes a one-time **$100** trial granted after billing setup with a verified credit or debit card. It ends after $100 of usage or 90 days. The current page says no payment is necessary for the grant; custom agents require a payment method. This replaces an earlier observed pause notice. Do not repeat that older notice as current. Trial credits fund hosted Agents, not external sponsor APIs or a cash prize.
+The [Billing documentation](https://docs.entire.com/billing), refreshed November 1, now says **new-account trial credits are temporarily paused**. Its underlying trial terms still describe a one-time $100 grant after verified-card billing setup, expiring after $100 usage or 90 days. Existing grants do not establish that new grants are available. The page also notes that in-flight model calls may finish after the balance reaches zero and small overrun usage can be invoiced; do not promise an absolute provider-enforced zero-overage boundary. Trial credits cover Entire's hosted Agents, not other sponsor APIs or a cash prize. No new trial was activated.
 
 Google sign-in reached an email-collision error; the existing GitHub provider successfully signed in as `@himanshu748`. A subsequent in-app browser visit confirmed the authenticated account and inspected Account → Billing. The current balance was $0 and automatic top-up was off. No trial grant was verified. The account already had a payment method at that inspection; this work did not add or change it, buy credit, enable top-up or run a hosted agent. Do not assume card presence means a grant is available or claim why a balance is zero.
 

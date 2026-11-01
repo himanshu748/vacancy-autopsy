@@ -10,8 +10,9 @@ import { publicUrlSchema } from './schemas.js';
 export const CAPTURE_HOSTS = Object.freeze(['www.employbl.com', 'employbl.com', 'www.oppidx.com', 'oppidx.com', 'job-boards.greenhouse.io',
   'boards.greenhouse.io', 'jobs.lever.co', 'jobs.eu.lever.co', 'jobs.ashbyhq.com']);
 const RESOURCE_HOSTS = new Set([...CAPTURE_HOSTS, 'boards-api.greenhouse.io', 'api.lever.co', 'api.eu.lever.co', 'api.ashbyhq.com']);
-export const captureInputSchema = z.object({ url: publicUrlSchema.refine((value) =>
-  CAPTURE_HOSTS.includes(new URL(value).hostname), 'Browser capture supports the listed job-board hosts only.') }).strict();
+export const captureInputSchema = z.object({ url: publicUrlSchema.refine((value) => {
+  try { return CAPTURE_HOSTS.includes(new URL(value).hostname); } catch { return false; }
+}, 'Browser capture supports the listed job-board hosts only.') }).strict();
 
 export interface CaptureArtifact {
   mediaType: 'image/png';
@@ -108,7 +109,7 @@ async function readJson(response: Response): Promise<unknown> {
   return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
 }
 
-/** Credentials in connectUrl are kept in memory and sent only to Browserbase. */
+/** Credentials in the constructed transport URL stay in memory and go only to Browserbase. */
 async function connectCdp(url: string, signal: AbortSignal): Promise<CdpConnection> {
   const socket = new WebSocket(url);
   let sequence = 0;
@@ -194,15 +195,19 @@ export async function captureAdvertisement(rawInput: unknown, options: BrowserCa
   });
   try {
     await assertPublicHost(new URL(requestedUrl).hostname, resolver, signal);
-    const created = await readJson(await api('', { ...(projectId ? { projectId } : {}), timeout: 60, keepAlive: false, proxies: false,
+    const created = await readJson(await api('', { ...(projectId ? { projectId } : {}), region: 'us-west-2', timeout: 60, keepAlive: false, proxies: false,
       browserSettings: { viewport: { width: 1280, height: 900 }, solveCaptchas: false, advancedStealth: false,
         verified: false, ignoreCertificateErrors: false, recordSession: true, logSession: true, allowedDomains: CAPTURE_HOSTS } }));
     sessionId = z.object({ id: sessionIdSchema }).parse(created).id;
-    const record = z.object({ connectUrl: z.string().url() }).parse(created);
-    const connectUrl = new URL(record.connectUrl);
-    if (connectUrl.protocol !== 'wss:' || connectUrl.username || connectUrl.password || connectUrl.port ||
-      !(connectUrl.hostname === 'connect.browserbase.com' || connectUrl.hostname.endsWith('.browserbase.com'))) throw new Error('Invalid browser transport host.');
-    cdp = await (options.connect ?? connectCdp)(record.connectUrl, signal);
+    // Browserbase documents connecting with apiKey + the REST-created session ID
+    // (https://docs.browserbase.com/integrations/braintrust/typescript). Its
+    // returned connectUrl may instead carry an opaque signing key. Construct the
+    // fixed default-region endpoint ourselves: no returned host, path, signing
+    // key or query parameter can select another session or destination.
+    const connectUrl = new URL('wss://connect.browserbase.com/');
+    connectUrl.searchParams.set('apiKey', apiKey);
+    connectUrl.searchParams.set('sessionId', sessionId);
+    cdp = await (options.connect ?? connectCdp)(connectUrl.href, signal);
     const target = z.object({ targetId: z.string().min(1).max(200) }).parse(await cdp.command('Target.createTarget', { url: 'about:blank' }));
     const attached = z.object({ sessionId: z.string().min(1).max(200) }).parse(await cdp.command('Target.attachToTarget', { targetId: target.targetId, flatten: true }));
     const sid = attached.sessionId;

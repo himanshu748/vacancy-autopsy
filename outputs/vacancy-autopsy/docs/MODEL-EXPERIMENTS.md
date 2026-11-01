@@ -2,15 +2,51 @@
 
 ## Current evidence
 
-Local experiment infrastructure is implemented and tested. Extraction now has 297 captured public-source records and a frozen employer/template holdout; this is not a priority/stale-ad dataset. No sponsor model run or trained checkpoint has completed. Synthetic unit tests validate logic only. No model improvement, production accuracy, Tinker qualification, or TabPFN qualification is claimed. The live TypeScript investigation flow remains deterministic.
+The real Tinker extraction experiment completed on October 30, 2026: one fine-tune, base/checkpoint validation and one fixed held-out test comparison. Its 297 public-source records use frozen employer/template holdouts. The trained model improved exact title preservation on the unseen HTML validation set; the native-JSON test was a ceiling tie. This is separate from priority/stale-ad prediction. Official availability verdicts remain grounded in deterministic first-party checks; extracted model fields are candidate identity information, not a verification verdict. Synthetic unit tests establish implementation behavior only.
+
+## Completed Tinker results
+
+The fixed Qwen/Qwen3-8B run used 97 Lever records from Palantir/Zoox for one epoch: rank 16, learning rate 0.0001, batch size 8, 13 optimizer steps and 339,094 training input tokens. Live capabilities confirmed the model is trainable and sampleable with a 32,768-token context. The experiment explicitly used 16,384 total tokens per example. Both comparisons used temperature 0, one response per row and a 512-token completion limit.
+
+| Evaluation | Base exact-record accuracy | Tuned exact-record accuracy | Base field micro-F1 | Tuned field micro-F1 |
+| --- | ---: | ---: | ---: | ---: |
+| Greenhouse validation: 100 page-text rows, Figma/Anthropic | 80% | 100% | 0.95 | 1.00 |
+| Ashby held-out test: 100 native-JSON rows, Notion/Semgrep | 100% | 100% | 1.00 | 1.00 |
+
+The validation gain corrected 20 title errors, including location qualifiers: the base model shortened “Account Executive, Enterprise (Berlin, Germany)” to “Account Executive, Enterprise,” while the tuned model preserved the complete source title. Exact job-ID and employer accuracy were already 100% and stayed there in both evaluations. All **400 comparison outputs** were retained, with zero invalid JSON responses, omitted rows or duplicate row IDs. Training choices were unchanged, and their hashes were frozen before the single held-out test comparison. No post-test retuning or replacement evaluation was performed.
+
+The **held-out native-JSON test showed no improvement** because both models were already at 100%. The separate deterministic validation baseline reached 99% exact-record accuracy; the learned validation result is one additional correct record over that parser. Do not turn the larger base-model comparison into a claim of broad superiority over deterministic extraction. The corpus contains 197 structured API JSON inputs and only 100 page-text inputs. Each holdout contains two employers and one actual ATS family. Representative third-party advertisement generalization and production accuracy remain unestablished.
+
+The complete experiment's worst-case gross token estimate was **$0.51320744**, using the refreshed [official Qwen3-8B rates](https://tinker-docs.thinkingmachines.ai/tinker/models/models_and_pricing/): $0.195 prefill, $0.60 sampling and $0.44 training per million tokens, without assuming cache discounts. This estimate is not a verified invoice or final credit deduction. A successful project usage query initially returned no rows; the [documented billing lag](https://tinker-docs.thinkingmachines.ai/tinker/cli/billing/) means that is not evidence of zero cost. No card-funded overage, automatic top-up, plan change or purchase was enabled.
+
+The private sampler checkpoint is 184,692,800 bytes. Its original one-hour save TTL was first extended to November 6, 2026, with a seven-day storage estimate of **$0.0043095** at the documented $0.10/GB-month rate. That historical retention was subsequently superseded by a 90-day extension: the unchanged checkpoint now remains **private through January 28, 2027, at 10:20 PM IST**, with a full 90-day storage estimate of **$0.05540784**. See the exploratory-check section below for the latest receipt. Retention does not change model parameters or the evaluation protocol. The exact sampler path remains in ignored `work/model-live-v1/training.json`, not in shared source.
+
+Current receipts at the workspace root are `work/model-live-v1/results-summary.json`, `validation.json`, `test.json`, `test-freeze.json`, `validation-title-errors.json` and `checkpoint-retention.json`. The earlier 24-hour retention receipt is preserved separately. All raw model outputs, credentials and private checkpoint identifiers stay outside the shareable source archive. Sponsor qualification and a broader extraction claim require their own review; this result establishes the narrow measured behavior above.
+
+## Completed TabPFN results
+
+A separate 132-record public corpus passed the frozen protocol and independent evidence review by another AI agent, not a human reviewer. Its seed-17 split was 82 Lever/community-catalogue training records, 20 OppIDX/Greenhouse validation records and 30 Simplify/Ashby test records, with employer and actual source-template families disjoint. Source captures and feature freezes preceded first-party checks. The reviewed labels preserve complete source bundles; uncertain or incomplete responses did not become negative labels.
+
+One fixed TabPFN-3.5 API prediction used four estimators and seed 17, with no test-set selection or retuning. All 50 held-out raw scores were preserved. The provider run completed in 12.48 seconds and consumed 10,000 quota tokens, confirmed by the account's before/after usage observation. No model weights or local-model license acceptance was needed.
+
+| Evaluation | TabPFN average precision | Age/logistic average precision | Outcome at fixed 20% check budget |
+| --- | ---: | ---: | --- |
+| Validation: 20 rows | 0.65000 | 0.65000 | All feature vectors tied; identical ID tie-break and no improvement |
+| Test: 30 rows | 0.92276 | 0.89251 | Six checks: TabPFN selects 6/17 exact-ID absences with zero false positives; each baseline selects 5/17 with one false positive |
+
+These values are **non-interpolated average precision**, not trapezoidal PR-AUC. All **17 test negatives were already publisher-marked INACTIVE**. The sample is retrospective and age-stratified, with catalogue JSON among its source representations. It does not establish market prevalence, production generalization or discovery of unmarked stale ads. The validation tie and publisher-status limitation must accompany the test gain. Publisher status, official verification results, text, URLs and employer groups were excluded from the 13-column numeric feature matrix; leakage mutation checks preserved that matrix.
+
+The local Shortlist service uses the fitted context, preserves null values and ranks only user-entered pre-check information. A real browser run ranked two genuine public advertisement URLs, used the selected opening to prefill and focus the check form, and retained entries and rankings when returning to Shortlist. Its priority is relative order, never an availability verdict. Accepted prediction state is persisted for resume; an uncertain submission cannot blindly submit again, and identical completed batches reuse their genuine result.
+
+Private receipts are retained under workspace `work/priority-corpus/`: `benchmark-v1.json`, `benchmark-usage.json`, `predictions.fixed-benchmark.json`, `independent-review.json` and the reviewed split/corpus. The live product receipt is `outputs/evidence/tabpfn-live-shortlist.json`. No credential, raw private model state or checkpoint identifier is included in shareable source.
 
 ## Executed local compatibility and token preflight
 
-The isolated local environment imported Tinker 0.36.0 and verified 14 SDK signatures/type constructions with sockets disabled. No service client was constructed. Transformers 5.22.1 and the real Qwen/Qwen3-8B tokenizer exposed a mapping-return compatibility bug: the runner now explicitly requests `return_dict=False` and validates a flat nonnegative token-ID list. The 47-test Python suite includes that regression. No model weights or provider outputs were downloaded.
+Before the live run, the isolated environment imported Tinker 0.36.0 and verified 14 SDK signatures/type constructions with sockets disabled; that earlier phase constructed no service client. Transformers 5.22.1 and the real Qwen/Qwen3-8B tokenizer exposed a mapping-return compatibility bug: the runner now explicitly requests `return_dict=False` and validates a flat nonnegative token-ID list. The Python suite covers that regression. Tokenizer files were cached locally; no base-model weights were downloaded. Real provider outputs were subsequently captured during the completed experiment above.
 
-On all 297 frozen rows, a 4,096-token cap rejects 36/97 training rows and 97/100 test rows. An explicit 16,384-token cap fits every row, but this is local shape/context evidence only. Planned training input is 339,094 tokens; worst-case base-plus-tuned validation is 422,916 and test comparison is 1,018,428. Each stage exceeds its default 100,000-token ceiling. Provider model/context availability, rates, budget authorization, training and evaluation remain unverified. The runner must refuse rather than truncate or raise a budget silently.
+On all 297 frozen rows, a 4,096-token cap rejects 36/97 training rows and 97/100 test rows. An explicit 16,384-token cap fits every row, but this is local shape/context evidence only. Planned training input is 339,094 tokens; worst-case base-plus-tuned validation is 422,916 and test comparison is 1,018,428. Each stage exceeds its default 100,000-token ceiling. Before the real requests, the authorized full run explicitly used ceilings of 350,000 training tokens, 425,000 validation-comparison tokens and 1,025,000 test-comparison tokens, with an 1,800-second deadline per action. Every row remained intact. These are declared complete-run envelopes; inputs were never silently truncated or omitted.
 
-Receipts remain private under `work/model-provider-sdk-proof.json`, `work/model-preflight-4096.json`, `work/model-preflight-16384.json` and `work/model-provider-preflight-status.json`. Earlier preflights that counted mapping keys were retained with `counts_valid: false`; their token totals are invalid. TabPFN client import remains unverified after a bounded dependency download timed out. No background download remains. The extraction corpus cannot supply the missing independently verified priority classes, and no learned ranking is served in the app.
+Receipts remain private under `work/model-provider-sdk-proof.json`, `work/model-preflight-4096.json`, `work/model-preflight-16384.json` and `work/model-provider-preflight-status.json`. Earlier preflights that counted mapping keys were retained with `counts_valid: false`; their token totals are invalid. TabPFN preparation and results are tracked separately. The extraction corpus does not supply independently verified priority classes, so the Tinker result cannot establish a TabPFN prediction or ranking result.
 
 ## What is being predicted
 
@@ -75,7 +111,7 @@ The joint employer/template holdout and deduplication policy remain unchanged in
 
 The captured corpus at `work/extraction-corpus/records.jsonl` passed this contract with 297 records, six employers and three real ATS families. Its seed 17 manifest assigned 97 Lever rows (Palantir/Zoox) to train, 100 Greenhouse rows (Figma/Anthropic) to validation, and 100 Ashby rows (Notion/Semgrep) to test, with no shared employers/templates. Dataset SHA-256: `26d6e3fecfba25e42e98bc4ef4b92d3863058ba90b7534c4b8a4a2637a302ed3`. These are public-source extraction records, not a stale-ad dataset:100 inputs are parser-extracted real page text and197 are native API JSON objects. Lever/Ashby page403responses were respected; documented public API data was captured as its own representation, never passed off as browser evidence or synthetic noisy ads.
 
-A fixed zero-model validation baseline(`native-fields-and-explicit-headings-v1`) used only the model inputs, without employer-specific dictionaries, group metadata or gold data. On 100 Greenhouse validation records it achieved 99% exact-record accuracy, 100% job-ID accuracy, 99% employer/title accuracy, and field micro-F1 of 0.9974937343. The artifact is `work/extraction-corpus/deterministic-validation.json`. The test partition was not evaluated. This near-deterministic result materially weakens the case for spending credit on this clean-source corpus; genuinely messy third-party generalization remains unproven. A model baseline/fine-tune must demonstrate useful improvement before a Tinker category claim.
+A fixed zero-model validation baseline(`native-fields-and-explicit-headings-v1`) used only the model inputs, without employer-specific dictionaries, group metadata or gold data. On 100 Greenhouse validation records it achieved 99% exact-record accuracy, 100% job-ID accuracy, 99% employer/title accuracy, and field micro-F1 of 0.9974937343. The artifact is `work/extraction-corpus/deterministic-validation.json`. This deterministic baseline was not evaluated on the test partition. This near-deterministic result limits the practical improvement that a learned extractor can demonstrate on this clean-source corpus. The subsequent Tinker result above must be read alongside this baseline; genuinely messy third-party generalization remains unproven.
 
 ## TabPFN comparison
 
@@ -93,11 +129,29 @@ Response-only next-token SFT uses a shifted input/target sequence and masks all 
 
 Compare base and checkpoint at temperature 0, one sample each, max 512 completion tokens, first on validation. Freeze all choices before a single held-out test comparison. Report exact job-ID accuracy, normalized employer accuracy, field micro precision/recall/F1, invalid-JSON count, exact-record accuracy, and the number/accuracy of non-null job IDs separately. Names/titles normalize NFKC, case and whitespace only; job IDs retain exact case/punctuation. The sample count, raw outputs, elapsed time, checkpoint and absolute metric changes remain inspectable. A saved checkpoint, lower training loss, or positive fixture result alone does not qualify as improvement.
 
+## Exploratory third-party template check: a regression
+
+After the original validation and test were complete, a separate protocol froze all 20 existing OppIDX advertisement captures. It preserved each complete captured text, its hash, all four labels, the unchanged prompt and checkpoint, temperature 0, and one sample per model per row. Employer and title labels were checked against the exact captured page-title line; each job ID and ATS reference occurred in the actual application link. No source text was edited. The 20 job identities overlap none of the original train, validation or test records. Figma and Anthropic do overlap the earlier validation employers, while remaining absent from training. This is an exploratory check of a different page template, not a newly preregistered unseen-employer test.
+
+| Real OppIDX captures | Base Qwen3-8B | Existing fine-tuned checkpoint |
+| --- | ---: | ---: |
+| Exact-record accuracy | 20/20 (100%) | 18/20 (90%) |
+| Exact job-ID accuracy | 20/20 (100%) | 18/20 (90%) |
+| Employer, title and ATS accuracy | 100% each | 100% each |
+| Field micro-F1 | 1.0 | 0.975 |
+| Invalid JSON | 0 | 0 |
+
+The two fine-tuned errors substituted an OppIDX URL slug for the actual Greenhouse posting ID: `data-engineer-figma-0u3v5s` instead of `5220003004`, and `figma-xlm891` instead of `6143238004`. These strings are present in the third-party URL, so a substring-grounding check alone cannot establish that they are ATS posting IDs. A model suggestion must still match a supported employer posting URL before it can supply an original application link. This regression limits the earlier validation gain and rules out a general claim that the fine-tuned model is better on real advertisements.
+
+All 40 responses were retained in 121.75 seconds, with no omitted rows, duplicates, follow-up training, or caller retries. Actual returned token counts were 62,172 input and 1,818 output tokens; current uncached rates imply a gross estimate of **$0.01321434**, not a verified invoice amount. Frozen inputs, raw outputs, error analysis, hashes and usage receipt are in the ignored `work/model-realworld-v1/` directory. Only two employers and one third-party template were tested, so these results do not establish representative production accuracy.
+
+The existing private checkpoint was separately verified after a 90-day TTL extension. Its unchanged 184,692,800-byte sampler now expires **January 28, 2027, at 16:50:39 UTC**. At the documented $0.10/GB/month storage rate, the full 90-day gross storage estimate is **$0.05540784**. Its path, private access and model stayed unchanged; no payment method, plan, auto-reload or publication setting changed. The retained receipt is `work/model-realworld-v1/checkpoint-retention-90days.json`.
+
 ## Release gates
 
-- Tinker: real reviewed corpus, frozen unseen-employer/template holdout, successful fine-tune, actual held-out base/checkpoint comparison, useful observed improvement and provider usage receipt. Requires an appropriate extraction corpus, project credential, confirmed bounded free-credit budget, and an authorized run. Account access alone does not satisfy this gate; the existing clean-source baseline argues for caution before spending credit.
-- TabPFN: same independent labels and frozen split, actual API predictions, baselines and held-out report, quota receipt. Currently blocked on data, credentials, and an authorized run. Browser quota availability is not evidence that this project ran.
-- Serving: establish measured benefit before exposing an extra prediction service. The TypeScript core currently remains independent of model availability.
+- Tinker: the real corpus, frozen employer/template holdouts, fine-tune and complete base/checkpoint comparisons have run. Validation improved; the held-out native-JSON test tied at its ceiling, and the exploratory third-party template check regressed. Actual billed cost remains unverified because usage data lags. Preserve these distinctions when reviewing category claims, and obtain a representative advertisement evaluation before asserting broader extraction value.
+- TabPFN: independently AI-reviewed labels, frozen split, actual API prediction, fixed baselines and held-out report, quota receipt and live Shortlist journey have run. Validation tied and the small retrospective test used publisher-marked negatives. Broader prospective generalization remains unestablished.
+- Serving: the trained checkpoint can supply candidate extraction fields through the optional local service. Model output does not establish source linkage or availability. Deployment, availability past the recorded checkpoint expiry and wider model quality remain separate checks.
 
 ## Primary sources checked October 30, 2026
 
@@ -108,5 +162,7 @@ Compare base and checkpoint at temperature 0, one sample each, max 512 completio
 - [Tinker training-client API](https://tinker-docs.thinkingmachines.ai/tinker/api-reference/trainingclient/)
 - [Tinker session lifecycle](https://tinker-docs.thinkingmachines.ai/tinker/api-reference/serviceclient/)
 - [Tinker checkpoint lifetime](https://tinker-docs.thinkingmachines.ai/tinker/howto/checkpoints/)
+- [Tinker current model pricing](https://tinker-docs.thinkingmachines.ai/tinker/models/models_and_pricing/)
+- [Tinker billing usage and lag](https://tinker-docs.thinkingmachines.ai/tinker/cli/billing/)
 
-Optional requirements pin `tabpfn-client==0.7.0` and `tinker==0.36.0`, with current official SDK signatures checked before a real run. Provider endpoints remain unexecuted; offline import/conformance results will be stated separately from successful provider use. Recheck package/docs compatibility before the first real run. No local TabPFN weights or non-commercial license acceptance is needed for the API path.
+Optional requirements pin `tabpfn-client==0.7.0` and `tinker==0.36.0`. Tinker 0.36.0 made the real requests reported above; earlier offline compatibility checks remain separate evidence. Recheck package/docs compatibility before another run. The TabPFN API path needs no local model weights or local-weight license acceptance.

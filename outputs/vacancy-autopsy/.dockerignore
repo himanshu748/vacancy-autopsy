@@ -1,0 +1,22 @@
+# Allowlist the application. In particular, never send .env, data, work,
+# checkpoints, session tracking, local SDKs, source captures or secret files.
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!vite.config.ts
+!index.html
+!src/
+!src/**
+!public/
+!public/**
+!ml/
+!ml/*.py
+!ml/requirements-*.txt
+!deploy/
+!deploy/**
+!Dockerfile
+!LICENSE
+**/__pycache__/
+**/*.pyc
+deploy/*.local.*

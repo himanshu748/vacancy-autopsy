@@ -2,6 +2,7 @@ import Fastify, { LogController, type FastifyRequest } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
+import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import type { Health, SponsorStatus, Investigation, InvestigationInput } from '../shared/types.js';
 import { investigationInputSchema, publicUrlSchema, reportIdSchema } from './schemas.js';
@@ -11,6 +12,10 @@ import type { Fetcher } from './ats.js';
 import { registerResearchRoutes, type ResearchOptions } from './research.js';
 import { registerApprovalRoutes, type ApprovalRouteOptions } from './approvals.js';
 import { ReviewAuthorizationError } from './auth.js';
+import { registerExtractionRoutes, type ExtractionOptions } from './extraction.js';
+import { registerPriorityRoutes, type PriorityOptions } from './priority.js';
+import { registerReleaseRoutes, type SharingOptions } from './releases.js';
+import { CaptureLinkageError, loadCapturedLinkage } from './capture-linkage.js';
 
 export interface AppOptions {
   store: InvestigationStore;
@@ -19,8 +24,12 @@ export interface AppOptions {
   logger?: boolean;
   rateLimit?: number;
   research?: ResearchOptions;
+  extraction?: ExtractionOptions;
+  priority?: PriorityOptions;
   reviewer?: Omit<ApprovalRouteOptions, 'reports'> & { issuer: string; audience: string; clientId?: string };
   sentryEnabled?: boolean;
+  /** Explicit opt-in only; immutable private reports are never served publicly. */
+  sharing?: SharingOptions;
   /** Optional Auth0-protected single workspace; never enables anonymous APIs. */
   publicOrigin?: string;
   /** Optional durable executor owns persistence; the local path saves below. */
@@ -29,6 +38,7 @@ export interface AppOptions {
 
 /** Local desk by default; optional hosted access is one permissioned workspace. */
 export async function createApp(options: AppOptions) {
+  if (options.sharing && !options.reviewer?.clientId) throw new Error('Public sharing requires complete human reviewer authentication.');
   let publicOrigin: string | undefined;
   if (options.publicOrigin) {
     const parsed = new URL(publicUrlSchema.parse(options.publicOrigin));
@@ -74,11 +84,19 @@ export async function createApp(options: AppOptions) {
     keyGenerator: (request) => `workspace:${principals.get(request) ?? 'no_verified_principal'}` });
   const rejectedAuthLimit = app.createRateLimit({ max: 60, timeWindow: '1 minute',
     keyGenerator: (request) => `failed-auth:${request.ip}` });
+  const sharedReadLimit = app.createRateLimit({ max: 60, timeWindow: '1 minute',
+    keyGenerator: (request) => `shared-read:${request.ip}` });
   if (publicOrigin) app.addHook('onRequest', async (request, reply) => {
     const path = request.url.split('?')[0];
+    const sharedRead = ['GET', 'HEAD'].includes(request.method) && /^\/api\/shared-reports\/[a-f0-9]{64}$/.test(path);
     const publicRead = ['GET', 'HEAD'].includes(request.method) &&
       (['/', '/api/health', '/api/reviewer-config', '/favicon.ico'].includes(path) ||
+        sharedRead ||
         /^\/assets\/[A-Za-z0-9_.-]+$/.test(path) || /^\/fonts\/[A-Za-z0-9_.-]+\.(ttf|woff2?)$/.test(path));
+    if (sharedRead) {
+      const limit = await sharedReadLimit(request);
+      if (!limit.isAllowed && limit.isExceeded) return reply.code(429).send({ error: 'Too many shared-finding requests. Please wait.' });
+    }
     if (publicRead) return;
     try {
       const principal = await options.reviewer!.authenticator.verify(request.headers.authorization);
@@ -110,7 +128,9 @@ export async function createApp(options: AppOptions) {
   });
   app.setErrorHandler((error, _request, reply) => {
     const statusCode = error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500;
-    if (error instanceof StorageFullError) {
+    if (error instanceof CaptureLinkageError) {
+      void reply.code(error.statusCode).send({ error: error.message });
+    } else if (error instanceof StorageFullError) {
       void reply.code(507).send({ error: error.message });
     } else if (statusCode === 413) {
       void reply.code(413).send({ error: 'The request is too large. Keep advertisement text under 16,000 characters.' });
@@ -130,8 +150,8 @@ export async function createApp(options: AppOptions) {
         detail: successfulWorkflowRuns > 0 ? 'The deterministic investigation workflow completed locally. No model or agent inference is implied.' : 'Workflow is installed; no completed run observed in this process yet.' },
       { name: 'MongoDB Atlas', status: options.store.kind === 'mongodb' ? 'configured_unverified' : 'not_configured',
         detail: options.store.kind === 'mongodb' ? 'MongoDB connection active. Atlas hosting and a saved read/write receipt must be independently verified.' : 'Reports use local files. Atlas is not configured.' },
-      pending('Tinker', 'Fine-tuning and extraction benchmarks have not run.'),
-      pending('TabPFN', 'The prediction model is not in this investigation path.'),
+      { name: 'Tinker', status: options.extraction?.artifactPath && options.extraction?.pythonPath ? 'configured_unverified' : 'not_configured', detail: 'A private fine-tuned identity extractor can be configured. Successful inference and model benchmark results are recorded separately.' },
+      { name: 'TabPFN', status: options.priority?.contextPath && options.priority?.pythonPath ? 'configured_unverified' : 'not_configured', detail: 'A pre-verification shortlist ranker can be configured. Ranking is separate from opening availability; benchmark limits are documented.' },
       pending('Render', 'No hosted deployment has been verified.'),
       { name: 'SerpApi', status: options.research?.discovery?.apiKey ? 'configured_unverified' : 'not_configured', detail: 'Bounded source discovery is implemented. Live provider evidence is tracked separately.' },
       { name: 'Browserbase', status: options.research?.capture?.apiKey ? 'configured_unverified' : 'not_configured', detail: 'Private browser-artifact capture is implemented. A successful live capture is still required.' },
@@ -142,11 +162,15 @@ export async function createApp(options: AppOptions) {
     ] };
   });
   await registerResearchRoutes(app, options.research);
+  await registerExtractionRoutes(app, options.extraction);
+  await registerPriorityRoutes(app, options.priority);
   app.get('/api/reviewer-config', async () => options.reviewer?.clientId
-    ? { configured: true, requiresAuthentication: Boolean(publicOrigin), issuer: options.reviewer.issuer, audience: options.reviewer.audience, clientId: options.reviewer.clientId }
-    : { configured: false, requiresAuthentication: false });
+    ? { configured: true, requiresAuthentication: Boolean(publicOrigin), sharingEnabled: Boolean(options.sharing), issuer: options.reviewer.issuer, audience: options.reviewer.audience, clientId: options.reviewer.clientId }
+    : { configured: false, requiresAuthentication: false, sharingEnabled: false });
   app.get('/api/workspace', async () => ({ authorized: true, visibility: 'private_workspace' }));
   if (options.reviewer) await registerApprovalRoutes(app, { ...options.reviewer, reports: options.store });
+  if (options.sharing && options.reviewer) await registerReleaseRoutes(app, { ...options.sharing,
+    reports: options.store, approvals: options.reviewer.approvals, authenticator: options.reviewer.authenticator });
   app.get('/api/investigations', async () => options.store.list());
 
   app.post('/api/investigations', async (request, reply) => {
@@ -158,9 +182,10 @@ export async function createApp(options: AppOptions) {
     const onClose = () => { if (request.raw.aborted) controller.abort(); };
     request.raw.on('close', onClose);
     try {
+      if (options.executeInvestigation) await loadCapturedLinkage(parsed.data, options.research?.artifacts);
       const report = options.executeInvestigation
         ? await options.executeInvestigation(parsed.data, { signal: controller.signal })
-        : await runInvestigation(parsed.data, { fetcher: options.fetcher, signal: controller.signal });
+        : await runInvestigation(parsed.data, { fetcher: options.fetcher, signal: controller.signal, artifacts: options.research?.artifacts });
       if (!options.executeInvestigation) await options.store.put(report);
       successfulWorkflowRuns++;
       return reply.code(201).send(report);
@@ -174,14 +199,18 @@ export async function createApp(options: AppOptions) {
   });
   app.post<{ Params: { id: string } }>('/api/investigations/:id/recheck', async (request, reply) => {
     if (!reportIdSchema.safeParse(request.params.id).success) return reply.code(404).send({ error: 'Investigation not found.' });
+    const replacement = z.object({ captureArtifactId: reportIdSchema.optional() }).strict().safeParse(request.body === undefined ? {} : request.body);
+    if (!replacement.success) return reply.code(400).send({ error: 'A recheck accepts only an optional saved capture reference; the original advertisement and posting identity cannot be changed.' });
     const previous = await options.store.get(request.params.id);
     if (!previous) return reply.code(404).send({ error: 'Investigation not found.' });
+    const input = { ...previous.input, ...(replacement.data.captureArtifactId ? { captureArtifactId: replacement.data.captureArtifactId } : {}) };
     if (activeChecks >= 2) return reply.code(429).send({ error: 'Two investigations are already running. Please try again shortly.' });
     activeChecks++;
     try {
+      if (options.executeInvestigation) await loadCapturedLinkage(input, options.research?.artifacts);
       const report = options.executeInvestigation
-        ? await options.executeInvestigation(previous.input, { previousInvestigationId: previous.id })
-        : await runInvestigation(previous.input, { fetcher: options.fetcher, previousInvestigationId: previous.id });
+        ? await options.executeInvestigation(input, { previousInvestigationId: previous.id })
+        : await runInvestigation(input, { fetcher: options.fetcher, previousInvestigationId: previous.id, artifacts: options.research?.artifacts });
       if (!options.executeInvestigation) await options.store.put(report);
       successfulWorkflowRuns++;
       return reply.code(201).send(report);

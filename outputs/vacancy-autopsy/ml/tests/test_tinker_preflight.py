@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from data import DataError
-from tinker_runner import preflight, prompt_tokens
+from tinker_runner import preflight, prompt_tokens, run_cli
 
 
 class CountingTokenizer:
@@ -24,6 +24,16 @@ class CountingTokenizer:
 
 
 class PreflightTests(unittest.TestCase):
+    def test_provider_exception_details_are_not_emitted_by_cli(self):
+        private_detail = "PROVIDER_DETAIL_MUST_REMAIN_PRIVATE"
+        with patch("tinker_runner.main", side_effect=RuntimeError(private_detail)):
+            with self.assertRaises(SystemExit) as raised:
+                run_cli()
+        self.assertIn("RuntimeError", str(raised.exception))
+        self.assertIn("saved artifact", str(raised.exception))
+        self.assertNotIn(private_detail, str(raised.exception))
+        self.assertTrue(raised.exception.__suppress_context__)
+
     def test_chat_template_mapping_or_malformed_tokens_are_refused(self):
         row = {"advertisement_url": "https://example.com/jobs/123", "advertisement_text": "example"}
         for output in ({"input_ids": [1, 2], "attention_mask": [1, 1]}, [], [[1]], [True], [-1], ["1"]):

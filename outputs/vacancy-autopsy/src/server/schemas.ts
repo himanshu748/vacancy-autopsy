@@ -1,16 +1,21 @@
 import { z } from 'zod';
 
 export const publicUrlSchema = z.string().trim().max(2048).url().refine((value) => {
-  const url = new URL(value);
-  return url.protocol === 'https:' && !url.username && !url.password && !url.port &&
-    !url.hostname.includes(':') && !/^\d+(\.\d+){3}$/.test(url.hostname) &&
-    url.hostname.includes('.') && !/(^|\.)(localhost|local|internal|test|invalid)$/.test(url.hostname);
+  // Zod may run refinements even after the URL-format check fails. Malformed
+  // input must remain a validation failure, including in provider result lists.
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port &&
+      !url.hostname.includes(':') && !/^\d+(\.\d+){3}$/.test(url.hostname) &&
+      url.hostname.includes('.') && !/(^|\.)(localhost|local|internal|test|invalid)$/.test(url.hostname);
+  } catch { return false; }
 }, 'Use a public HTTPS URL without credentials or a custom port.');
 
 export const investigationInputSchema = z.object({
   url: publicUrlSchema,
   officialUrl: publicUrlSchema.optional(),
   advertisementText: z.string().trim().max(16000).optional(),
+  captureArtifactId: z.string().uuid().optional(),
 }).strict();
 
 export const identitySchema = z.object({
@@ -37,6 +42,7 @@ export const investigationSchema = z.object({
   verdict: z.enum(['verified_open', 'not_listed', 'inconclusive']),
   title: z.string(), employer: z.string(), jobId: z.string().optional(),
   ats: z.enum(['greenhouse', 'lever', 'ashby']).optional(), officialUrl: publicUrlSchema.optional(),
+  sourceObservation: z.object({ verdict: z.enum(['verified_open', 'not_listed', 'inconclusive']), explanation: z.string(), checkedAt: z.string().datetime() }).strict().optional(),
   explanation: z.string(), limitations: z.array(z.string()), evidence: z.array(evidenceSchema),
   timeline: z.array(timelineSchema), mode: z.enum(['live', 'illustrative']),
   publication: z.literal('private'), previousInvestigationId: z.string().uuid().optional(),

@@ -8,6 +8,8 @@ import { createActivities } from './activities.js';
 import { DEFAULT_TASK_QUEUE, type DurableRequest } from './contracts.js';
 import { initializeObservability, flushObservability } from '../server/observability.js';
 import { settleCleanup } from '../server/shutdown.js';
+import { LocalArtifactStore } from '../server/research.js';
+import { connectMongoWorkspace, type MongoWorkspace } from '../server/mongo-workspace.js';
 
 async function main() {
   initializeObservability({ dsn: process.env.SENTRY_DSN, environment: process.env.SENTRY_ENVIRONMENT });
@@ -18,9 +20,12 @@ async function main() {
     ? await MongoStore.connect(process.env.MONGODB_URI, process.env.MONGODB_DATABASE ?? 'vacancy_autopsy')
     : new LocalStore(process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(root, 'data'));
   let connection: NativeConnection | undefined;
+  let workspace: MongoWorkspace | undefined;
   try {
+    if (process.env.MONGODB_URI) workspace = await connectMongoWorkspace(process.env.MONGODB_URI, process.env.MONGODB_DATABASE ?? 'vacancy_autopsy');
+    const artifacts = workspace?.artifacts ?? new LocalArtifactStore(resolve(process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(root, 'data'), 'sources'));
     connection = await NativeConnection.connect({ address });
-    const activities = createActivities({ store, signal: cancellationSignal });
+    const activities = createActivities({ store, artifacts, signal: cancellationSignal });
     const worker = await Worker.create({
       connection, namespace: process.env.TEMPORAL_NAMESPACE ?? 'default',
       taskQueue: process.env.TEMPORAL_TASK_QUEUE ?? DEFAULT_TASK_QUEUE,
@@ -39,7 +44,7 @@ async function main() {
     process.once('SIGTERM', () => worker.shutdown());
     await worker.run();
   } finally {
-    const closed = await settleCleanup([() => store.close(), async () => connection?.close(), flushObservability]);
+    const closed = await settleCleanup([() => store.close(), async () => workspace?.close(), async () => connection?.close(), flushObservability]);
     if (!closed) throw new Error('Worker resources could not all close cleanly.');
   }
 }

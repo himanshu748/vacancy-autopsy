@@ -5,11 +5,14 @@ import { sanitizeInput } from '../server/identity.js';
 import { investigationInputSchema, reportIdSchema } from '../server/schemas.js';
 import { runInvestigation } from '../server/workflow.js';
 import { StorageFullError, type InvestigationStore } from '../server/store.js';
+import type { ArtifactStore } from '../server/research.js';
+import { CaptureLinkageError } from '../server/capture-linkage.js';
 import type { DurableActivities, DurableRequest, ReportReference } from './contracts.js';
 
 export interface ActivityDependencies {
   store: InvestigationStore;
   fetcher?: Fetcher;
+  artifacts?: ArtifactStore;
   signal?: () => AbortSignal;
   /** Dependency-injected recovery probe, never enabled by API input or env. */
   afterPersist?: (report: Investigation) => Promise<void>;
@@ -47,6 +50,7 @@ export function createActivities(dependencies: ActivityDependencies): DurableAct
           fetcher: dependencies.fetcher,
           signal: dependencies.signal?.(),
           previousInvestigationId: request.previousInvestigationId,
+          artifacts: dependencies.artifacts,
         });
         report.id = request.operationId;
         try {
@@ -69,6 +73,7 @@ export function createActivities(dependencies: ActivityDependencies): DurableAct
         return reference(report, false);
       } catch (error) {
         if (error instanceof ApplicationFailure) throw error;
+        if (error instanceof CaptureLinkageError) throw ApplicationFailure.nonRetryable(error.message, 'CaptureLinkageError');
         // Temporal persists Activity errors in history and logs them. Database
         // drivers can include a secret-bearing URI, so discard original causes.
         throw new Error('The investigation activity could not read or save its evidence; retry is bounded.');

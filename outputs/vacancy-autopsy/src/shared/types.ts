@@ -3,6 +3,8 @@ export interface InvestigationInput {
   url: string;
   officialUrl?: string;
   advertisementText?: string;
+  /** Reference to a saved private browser artifact; never client-supplied evidence. */
+  captureArtifactId?: string;
 }
 export interface Evidence {
   id: string;
@@ -32,6 +34,7 @@ export interface Investigation {
   ats?: "greenhouse" | "lever" | "ashby";
   officialUrl?: string;
   explanation: string;
+  sourceObservation?: { verdict: Verdict; explanation: string; checkedAt: string };
   limitations: string[];
   evidence: Evidence[];
   timeline: TimelineStep[];

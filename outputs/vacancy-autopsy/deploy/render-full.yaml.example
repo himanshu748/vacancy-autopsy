@@ -1,0 +1,48 @@
+# REVIEW ONLY: not the repository-root render.yaml. Applying creates paid compute.
+# User must authorize the exact service/cost and resolve capacity first.
+services:
+  - type: web
+    name: vacancy-autopsy
+    runtime: docker
+    repo: https://github.com/himanshu748/vacancy-autopsy
+    branch: main
+    rootDir: outputs/vacancy-autopsy
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: singapore
+    plan: 1c-2g
+    numInstances: 1
+    autoDeployTrigger: off
+    healthCheckPath: /api/health
+    disk:
+      name: priority-operations
+      mountPath: /var/lib/vacancy-autopsy
+      sizeGB: 1
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PUBLIC_ORIGIN
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        value: vacancy_autopsy
+      - key: AUTH0_ISSUER_BASE_URL
+        sync: false
+      - key: AUTH0_AUDIENCE
+        sync: false
+      - key: AUTH0_CLIENT_ID
+        sync: false
+      - key: TINKER_API_KEY
+        sync: false
+      - key: TINKER_PROJECT_ID
+        sync: false
+      - key: TINKER_EXTRACTOR_ARTIFACT
+        value: /etc/secrets/tinker-training.json
+      - key: TABPFN_TOKEN
+        sync: false
+      - key: TABPFN_PRIORITY_CONTEXT
+        value: /var/lib/vacancy-autopsy/priority/model-context.json
+# Add the three metadata secret files in Dashboard before the first healthy run.
+# Optional SerpApi, Browserbase and Sentry variables are in .env.example.
+# TEMPORAL_ADDRESS is intentionally absent: current client/worker are loopback-only.

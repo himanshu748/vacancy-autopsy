@@ -6,13 +6,14 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 root = Path(__file__).resolve().parents[1]
 destination = root.parent / "vacancy-autopsy.zip"
-folders = {"src", "tests", "docs", "scripts", "ml", "public"}
+folders = {"src", "tests", "docs", "scripts", "ml", "public", "deploy"}
 root_files = {".env.example", ".gitignore", "AGENTS.md", "CLAUDE.md", "LICENSE", "README.md",
-              "package.json", "package-lock.json", "tsconfig.json", "vite.config.ts", "index.html"}
+              "package.json", "package-lock.json", "tsconfig.json", "vite.config.ts", "index.html",
+              "Dockerfile", ".dockerignore"}
 excluded = {"node_modules", ".tools", ".git", "dist", "data", ".venv", "__pycache__",
             ".pytest_cache", "artifacts", "test-results", "playwright-report"}
 suffixes = {".ts", ".tsx", ".css", ".html", ".mjs", ".cjs", ".py", ".md", ".json", ".txt",
-            ".toml", ".yaml", ".yml", ".svg", ".ttf", ".woff", ".woff2"}
+            ".toml", ".yaml", ".yml", ".svg", ".ttf", ".woff", ".woff2", ".sh"}
 files = []
 for file in root.rglob("*"):
     relative = file.relative_to(root)
@@ -22,8 +23,10 @@ for file in root.rglob("*"):
     if any(parent.is_symlink() for parent in file.parents if parent != root.parent):
         continue
     include = (len(relative.parts) == 1 and file.name in root_files) or (
-        relative.parts[0] in folders and file.suffix in suffixes
+        relative.parts[0] in folders
+        and (file.suffix in suffixes or relative.as_posix() == "deploy/render-full.yaml.example")
         and not file.name.startswith(".env")
+        and ".local." not in file.name
     ) or relative.as_posix() == ".entire/agent-guide.md"
     if include:
         files.append(file)

@@ -70,3 +70,6 @@ This proves **local worker-crash recovery with a synthetic source fixture**. It 
 - [Workflow API and proxyActivities](https://typescript.temporal.io/api/namespaces/workflow)
 - [Worker API](https://typescript.temporal.io/api/namespaces/worker)
 - [Official first TypeScript application](https://learn.temporal.io/getting_started/typescript/hello_world_in_typescript/)
+
+
+The final November 1 repeat after capture-reference integration also passed at `2026-11-01T02:06:03.038Z`: real worker SIGKILL, one source fetch, one unchanged saved report, successful history replay and no feed body in history. This remains a synthetic-source/local-server recovery test. Receipt: workspace `work/temporal/deadline-recovery/recovery-receipt.json`. A separate real captured-ad investigation inspected its actual history and found URL/official-URL/capture-reference input only, without captured DOM/PNG; see workspace `outputs/evidence/browserbase-linked-receipt.json`.

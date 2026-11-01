@@ -1,8 +1,8 @@
 import type { Auth0Client } from '@auth0/auth0-spa-js';
 import type { MouseEvent } from 'react';
 
-export type WorkspaceConfig = { configured: false; requiresAuthentication: boolean } |
-  { configured: true; requiresAuthentication: boolean; issuer: string; clientId: string; audience: string };
+export type WorkspaceConfig = { configured: false; requiresAuthentication: boolean; sharingEnabled?: boolean } |
+  { configured: true; requiresAuthentication: boolean; sharingEnabled?: boolean; issuer: string; clientId: string; audience: string };
 export const WORKSPACE_ACCESS_EVENT = 'vacancy-autopsy:workspace-access';
 const RETURN_REPORT_KEY = 'vacancy-autopsy:review-report';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
@@ -26,13 +26,14 @@ function readConfig(value: unknown): WorkspaceConfig {
   if (!object(value) || typeof value.configured !== 'boolean' || typeof value.requiresAuthentication !== 'boolean') {
     throw new WorkspaceAuthError(503, 'Workspace configuration could not be read.');
   }
-  if (!value.configured) return { configured: false, requiresAuthentication: value.requiresAuthentication };
+  if (value.sharingEnabled !== undefined && typeof value.sharingEnabled !== 'boolean') throw new WorkspaceAuthError(503);
+  if (!value.configured) return { configured: false, requiresAuthentication: value.requiresAuthentication, sharingEnabled: false };
   if (typeof value.issuer !== 'string' || typeof value.clientId !== 'string' || !value.clientId ||
       typeof value.audience !== 'string' || !value.audience) throw new WorkspaceAuthError(503);
   const issuer = new URL(value.issuer);
   if (issuer.protocol !== 'https:' || issuer.origin + '/' !== value.issuer || issuer.username || issuer.password || issuer.port) throw new WorkspaceAuthError(503);
   return { configured: true, requiresAuthentication: value.requiresAuthentication,
-    issuer: value.issuer, clientId: value.clientId, audience: value.audience };
+    sharingEnabled: value.sharingEnabled === true, issuer: value.issuer, clientId: value.clientId, audience: value.audience };
 }
 export function getWorkspaceConfig(refresh = false): Promise<WorkspaceConfig> {
   if (refresh) configRequest = null;

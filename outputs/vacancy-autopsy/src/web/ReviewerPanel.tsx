@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Investigation } from '../shared/types';
+import { SharingPanel } from './SharingPanel';
 import { getWorkspaceClient, getWorkspaceConfig, needsWorkspaceSignIn as needsSignIn, noteWorkspaceReport,
   restoredWorkspaceReport, reviewerFetch, signInToWorkspace, signOutOfWorkspace,
   WorkspaceAuthError as ReviewerRequestError, type WorkspaceConfig } from './workspace-auth';
@@ -157,6 +158,7 @@ export function ReviewerPanel({ report }: { report: Investigation }) {
         </button>
       </>}
     </>}
+    {signedIn && review?.approval && config?.sharingEnabled && <SharingPanel key={report.id + review.reportDigest} reportId={report.id} reportDigest={review.reportDigest} />}
     {phase === 'error' && <button type="button" className="text-button" disabled={busy} onClick={() => setAttempt((value) => value + 1)}>Retry reviewer access</button>}
     {signedIn && <button type="button" className="text-button" disabled={busy} onClick={() => void signOut()}>Sign out of review</button>}
   </section>;

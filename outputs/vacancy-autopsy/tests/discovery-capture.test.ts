@@ -64,6 +64,25 @@ test('Discovery caps retained results and rejects oversized or invalid UTF-8 res
   }
 });
 
+test('One malformed search URL is discarded without losing other valid discovery leads', async () => {
+  let calls = 0;
+  const result = await discoverJobs({ query: 'public job query' }, { apiKey: key, fetcher: (async () => {
+    calls++;
+    return jsonResponse({ search_metadata: { status: 'Success', id: 'synthetic_mixed_urls' }, organic_results: [
+      { link: 'not-a-url', title: 'Malformed lead' },
+      { link: 'https://', title: 'Incomplete URL' },
+      { link: '/jobs/123', title: 'Relative URL' },
+      { link: `${jobUrl}?source=board`, title: 'Public supported posting' },
+    ] });
+  }) as typeof fetch });
+  assert.equal(calls, 1);
+  assert.equal(result.status, 'success');
+  assert.deepEqual(result.candidates.map(candidate => candidate.url), [jobUrl]);
+  assert.equal(result.candidates[0].source, 'official_posting_candidate');
+  assert.equal(createHash('sha256').update(result.provenance!.projectionBody).digest('hex'), result.provenance?.projectionSha256);
+  assert.ok(!JSON.stringify(result).includes(key));
+});
+
 class FakeCdp implements CdpConnection {
   calls: { method: string; params: Record<string, unknown>; sid?: string }[] = [];
   listeners = new Map<string, Set<(event: CdpEvent) => void>>();
@@ -122,6 +141,7 @@ test('Capture enforces restricted session settings, captures actual adapter obse
   assert.equal(fixture.calls[0].body.timeout, 60);
   assert.equal(fixture.calls[0].body.keepAlive, false);
   assert.equal(fixture.calls[0].body.proxies, false);
+  assert.equal(fixture.calls[0].body.region, 'us-west-2');
   const settings = fixture.calls[0].body.browserSettings as Record<string, unknown>;
   assert.equal(settings.solveCaptchas, false);
   assert.equal(settings.ignoreCertificateErrors, false);
@@ -150,17 +170,72 @@ test('Capture rejects unsupported hosts, reserved DNS and missing configuration 
   for (const address of ['93.184.216.34', '8.8.8.8', '2606:4700:4700::1111']) assert.equal(isPublicAddress(address), true, address);
 });
 
-test('Capture fails closed on an untrusted CDP endpoint or unsafe final redirect and still releases the known session', async () => {
-  for (const transport of ['wss://attacker.example.com/cdp', 'ws://connect.browserbase.com/cdp', 'wss://connect.browserbase.com.attacker.example.com/cdp']) {
-    const fixture = browserFixture(new FakeCdp(), transport);
-    let connected = false;
-    const result = await captureAdvertisement({ url: adUrl }, { ...fixture.options, connect: async () => { connected = true; return fixture.cdp; } });
-    assert.equal(result.status, 'failed'); assert.equal(result.cleanup, 'released'); assert.equal(connected, false);
-  }
+test('Capture fails closed on an unsafe final redirect and releases the known session', async () => {
   const fixture = browserFixture();
   fixture.cdp.snapshot.url = 'https://outside.example.com/redirected';
   const result = await captureAdvertisement({ url: adUrl }, fixture.options);
   assert.equal(result.status, 'failed'); assert.equal(result.evidence, undefined); assert.equal(result.cleanup, 'released');
+});
+
+test('Capture ignores returned transport destinations and binds CDP only to the exact freshly created session', async () => {
+  const foreignId = '6a773f63-bb32-4a76-991e-44f838bad98f';
+  for (const transport of [
+    'wss://attacker.example.com/cdp',
+    'ws://connect.browserbase.com/cdp',
+    'wss://connect.browserbase.com.attacker.example.com/cdp',
+    'wss://connect.usw2.browserbase.com/?signingKey=opaque_synthetic_signing_key',
+    `wss://connect.browserbase.com?apiKey=${key}`,
+    `wss://connect.browserbase.com?apiKey=${key}#sessionId=${id}`,
+    `wss://connect.browserbase.com?apiKey=${key}&sessionId=`,
+    `wss://connect.browserbase.com?apiKey=${key}&sessionId=${foreignId}`,
+    `wss://connect.browserbase.com?apiKey=${key}&sessionId=${id}&sessionId=${id}`,
+    `wss://connect.browserbase.com?apiKey=${key}&sessionId=${id}&sessionId=${foreignId}`,
+    `wss://connect.browserbase.com?apiKey=${key}&sessionId=${id}&%73essionId=${foreignId}`,
+    `wss://connect.browserbase.com?apiKey=${key}&sessionId=${id}&SessionId=${foreignId}`,
+    `wss://connect.browserbase.com?apiKey=${key}&SessionId=${id}`,
+  ]) {
+    const fixture = browserFixture(new FakeCdp(), transport);
+    const connectedUrls: URL[] = [];
+    const result = await captureAdvertisement({ url: adUrl }, { ...fixture.options, connect: async (url) => {
+      connectedUrls.push(new URL(url));
+      return fixture.cdp;
+    } });
+    assert.equal(connectedUrls.length, 1);
+    assert.equal(connectedUrls[0].origin, 'wss://connect.browserbase.com');
+    assert.equal(connectedUrls[0].pathname, '/');
+    assert.equal(connectedUrls[0].username, '');
+    assert.equal(connectedUrls[0].password, '');
+    assert.equal(connectedUrls[0].hash, '');
+    assert.deepEqual([...connectedUrls[0].searchParams], [['apiKey', key], ['sessionId', id]]);
+    assert.equal(result.status, 'captured');
+    assert.equal(result.sessionId, id);
+    assert.equal(result.cleanup, 'released');
+    assert.equal(fixture.calls.length, 2);
+    assert.equal(fixture.calls[1].url, `https://api.browserbase.com/v1/sessions/${id}`);
+    assert.deepEqual(fixture.calls[1].body, { status: 'REQUEST_RELEASE' });
+    assert.ok(!JSON.stringify(result).includes(key));
+    assert.ok(!JSON.stringify(result).includes(transport));
+    assert.ok(!JSON.stringify(result).includes(foreignId));
+  }
+});
+
+test('Transport URL construction percent-encodes credentials instead of allowing query injection', async () => {
+  const fixture = browserFixture();
+  const unusualKey = `${key}&sessionId=foreign-session#fragment?apiKey=another`;
+  let connectedUrl: string | undefined;
+  const result = await captureAdvertisement({ url: adUrl }, { ...fixture.options, apiKey: unusualKey, connect: async (url) => {
+    connectedUrl = url;
+    return fixture.cdp;
+  } });
+  const transport = new URL(connectedUrl!);
+  assert.deepEqual([...transport.searchParams], [['apiKey', unusualKey], ['sessionId', id]]);
+  assert.equal(transport.hash, '');
+  assert.equal(result.status, 'captured');
+  assert.equal(result.cleanup, 'released');
+  assert.equal(fixture.calls[1].url, `https://api.browserbase.com/v1/sessions/${id}`);
+  assert.ok(!JSON.stringify(result).includes(key));
+  assert.ok(!JSON.stringify(result).includes(unusualKey));
+  assert.ok(!JSON.stringify(result).includes(connectedUrl!));
 });
 
 test('Access restrictions remain captured blocks, and cleanup failures remain visible without leaking provider errors', async () => {
@@ -178,20 +253,37 @@ test('Access restrictions remain captured blocks, and cleanup failures remain vi
   assert.ok(!JSON.stringify(failed).includes(key)); assert.match(failed.limitations.join(' '), /60 seconds/);
 });
 
-test('Missing CDP connection data releases a known session; cancelled capture makes no provider request', async () => {
+test('Fresh session IDs do not require a returned connectUrl; cancelled capture makes no provider request', async () => {
   const fixture = browserFixture();
   const result = await captureAdvertisement({ url: adUrl }, { ...fixture.options, fetcher: (async (url, init) => {
     if (String(url).endsWith('/sessions')) return jsonResponse({ id });
     await fixture.options.fetcher(url, init);
     return jsonResponse({ id, status: 'COMPLETED' });
   }) as typeof fetch });
-  assert.equal(result.status, 'failed'); assert.equal(result.cleanup, 'released');
+  assert.equal(result.status, 'captured'); assert.equal(result.cleanup, 'released');
   const controller = new AbortController(); controller.abort();
   const cancelled = await captureAdvertisement({ url: adUrl }, { ...fixture.options, signal: controller.signal });
   assert.equal(cancelled.status, 'cancelled');
   // The only fixture call above is the explicit release, not session creation.
   assert.equal(fixture.calls.length, 1);
   assert.equal(fixture.calls[0].url, `https://api.browserbase.com/v1/sessions/${id}`);
+});
+
+test('Malformed or missing fresh REST IDs cannot open CDP or release a different session', async () => {
+  for (const invalidId of [undefined, '', '../existing-session', `${id}?sessionId=other`, 'x'.repeat(101)]) {
+    const fixture = browserFixture();
+    let connected = false;
+    const urls: string[] = [];
+    const result = await captureAdvertisement({ url: adUrl }, { ...fixture.options,
+      fetcher: (async (url) => { urls.push(String(url)); return jsonResponse({ id: invalidId, connectUrl: `wss://connect.browserbase.com?sessionId=${id}` }); }) as typeof fetch,
+      connect: async () => { connected = true; return fixture.cdp; },
+    });
+    assert.equal(result.status, 'failed');
+    assert.equal(result.sessionId, undefined);
+    assert.equal(connected, false);
+    assert.equal(fixture.cdp.calls.length, 0);
+    assert.deepEqual(urls, ['https://api.browserbase.com/v1/sessions']);
+  }
 });
 
 test('HTTP success with a still-running release response never claims confirmed cleanup', async () => {

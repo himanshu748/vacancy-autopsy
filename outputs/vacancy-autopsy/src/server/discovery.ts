@@ -26,10 +26,20 @@ export interface DiscoveryResult {
 }
 export interface DiscoveryOptions { apiKey?: string; fetcher?: typeof fetch; signal?: AbortSignal }
 
+const candidateSchema = z.object({
+  link: z.string().max(4096), title: z.string().max(1000),
+  snippet: z.string().max(8000).optional().catch(undefined),
+  position: z.number().int().min(1).max(1000).optional().catch(undefined),
+});
+const organicRowSchema = z.object({
+  link: z.unknown().optional(), title: z.unknown().optional(), snippet: z.unknown().optional(),
+  position: z.unknown().optional(),
+  sitelinks: z.object({ inline: z.unknown().optional(), expanded: z.unknown().optional(),
+    list: z.unknown().optional() }).optional().catch(undefined),
+});
 const responseSchema = z.object({
   search_metadata: z.object({ status: z.literal('Success'), id: z.string().regex(/^[A-Za-z0-9_-]{1,100}$/).optional() }),
-  organic_results: z.array(z.object({ link: z.string().max(4096), title: z.string().max(1000),
-    snippet: z.string().max(8000).optional(), position: z.number().int().min(1).max(1000).optional() })).max(100).optional(),
+  organic_results: z.array(z.unknown()).transform((rows) => rows.slice(0, 100)).optional(),
   search_information: z.object({ total_results: z.number().nonnegative().optional(), organic_results_state: z.string().optional() }).optional(),
   error: z.unknown().optional(),
 });
@@ -40,6 +50,7 @@ export async function discoverJobs(rawInput: unknown, options: DiscoveryOptions 
   const base = { provider: 'serpapi' as const, query: input.query, capturedAt: new Date().toISOString(), candidates: [],
     limitations: ['Search results and snippets are discovery leads, not browser captures or evidence that an opening is active.',
       'One first-page Google search is requested. Search coverage is incomplete and can reflect an earlier cached result.',
+      'Only the first 100 organic rows and first 100 documented organic sitelinks are inspected. Up to ten unique leads are retained, with exact supported ATS URLs first.',
       'Result URL queries and fragments are discarded. No advertised employer or source linkage is inferred from ranking.'] };
   const key = options.apiKey?.trim();
   if (!key) return { ...base, status: 'not_configured', detail: 'SerpApi discovery is unavailable until SERPAPI_API_KEY is configured.' };
@@ -72,26 +83,50 @@ export async function discoverJobs(rawInput: unknown, options: DiscoveryOptions 
     const parsed = responseSchema.parse(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))));
     if (parsed.error !== undefined || (!parsed.organic_results && parsed.search_information?.total_results !== 0 &&
       parsed.search_information?.organic_results_state !== 'Fully empty')) throw new Error('Search was incomplete.');
-    const candidates: DiscoveryCandidate[] = [];
+    const discovered: DiscoveryCandidate[] = [];
     const seen = new Set<string>();
     const redact = (value: string) => value.replaceAll(key, '[REDACTED]');
-    for (const result of parsed.organic_results ?? []) {
-      if (candidates.length === 10) break;
+    const addCandidate = (raw: unknown, position: number) => {
+      const candidate = candidateSchema.safeParse(raw);
+      if (!candidate.success) return;
+      const result = candidate.data;
       const valid = publicUrlSchema.safeParse(result.link);
-      if (!valid.success) continue;
+      if (!valid.success) return;
       const target = new URL(valid.data);
       target.search = ''; target.hash = '';
       const normalized = target.href;
-      if (seen.has(normalized)) continue;
+      if (seen.has(normalized) || normalized.includes(key)) return;
       seen.add(normalized);
-      candidates.push({ url: normalized, title: redact(result.title).slice(0, 300),
-        snippet: redact(result.snippet ?? '').slice(0, 1000), position: result.position ?? candidates.length + 1,
+      discovered.push({ url: normalized, title: redact(result.title).slice(0, 300),
+        snippet: redact(result.snippet ?? '').slice(0, 1000), position,
         source: parseIdentity(normalized) ? 'official_posting_candidate' : 'advertisement_candidate' });
+    };
+    let inspectedSitelinks = 0;
+    for (const [index, raw] of (parsed.organic_results ?? []).entries()) {
+      const row = organicRowSchema.safeParse(raw);
+      if (!row.success) continue;
+      const result = row.data;
+      const position = candidateSchema.shape.position.parse(result.position) ?? index + 1;
+      addCandidate(result, position);
+      // SerpApi documents these three organic-result sitelink arrays. Do not
+      // traverse arbitrary metadata, redirect links, or nested provider URLs.
+      for (const group of ['inline', 'expanded', 'list'] as const) {
+        const links = result.sitelinks?.[group];
+        if (!Array.isArray(links)) continue;
+        for (const link of links.slice(0, 100 - inspectedSitelinks)) {
+          inspectedSitelinks++;
+          addCandidate(link, position);
+        }
+      }
     }
+    // Stable provider order within each group; board roots cannot crowd an exact
+    // supported posting out of the ten retained leads.
+    const candidates = [...discovered.filter((candidate) => candidate.source === 'official_posting_candidate'),
+      ...discovered.filter((candidate) => candidate.source === 'advertisement_candidate')].slice(0, 10);
     // Retain only a declared projection. Raw provider metadata can contain private
     // endpoint URLs; never persist a request URL carrying the API key.
     const projectionBody = JSON.stringify({ query: input.query, candidates });
-    const searchId = parsed.search_metadata.id === key ? undefined : parsed.search_metadata.id;
+    const searchId = parsed.search_metadata.id?.includes(key) ? undefined : parsed.search_metadata.id;
     return { ...base, status: 'success', candidates, detail: `${candidates.length} source candidates discovered; none has been verified.`,
       provenance: { ...(searchId ? { searchId } : {}), requestCount: 1, projectionBody,
         projectionSha256: createHash('sha256').update(projectionBody).digest('hex') } };
