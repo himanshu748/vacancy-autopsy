@@ -56,29 +56,24 @@ The project is MIT-licensed. The [setup guide](https://github.com/himanshu748/va
 
 ### Tinker reads the advertisement
 
-The reader has a specific job: turn a page of job text into the employer, full role title, ATS and posting ID. I fine-tuned the open-weight **Qwen3-8B** with Tinker and connected it to “Read listing details” in the workspace.
+On the frozen Greenhouse pages, the tuned Qwen3-8B reader was more accurate and cheaper than the largest available Qwen baseline:
 
-In the product, that means less copying between an advertisement and the check form. The extracted fields remain suggestions that must be grounded in the supplied text or URL.
+| Model | Exact records | p50 / p95 seconds | Estimated USD / 1,000 |
+| --- | ---: | ---: | ---: |
+| Tuned Qwen3-8B | 100/100 | 2.87 / 3.01 | $0.338 |
+| Qwen3.5-397B-A17B | 91/100 | 2.85 / 2.99 | $3.039 |
 
-A small extraction mistake can send an investigation toward the wrong opening. A shortened title can hide a location qualifier; a page slug can look like an identifier while belonging to the advertisement rather than the employer. I kept the reader’s output narrow and allowed missing fields to stay empty. Its purpose is to make the next check easier to set up accurately.
-
-On 100 unseen-employer Greenhouse validation records, exact-record accuracy improved from **80% to 100%**, through better preservation of full titles; employer and job-ID accuracy were already 100%. A separate 100-record Ashby JSON test tied at 100%. A later exploratory set of 20 third-party advertisements exposed two tuned-model errors, versus none for the base model. Those results shaped the product: ATS-format and text-grounding checks reject invalid identity suggestions.
-
-These were mostly clean source representations. A deterministic validation parser also reached 99%, so the result supports a specific title-preservation improvement rather than a broad claim that fine-tuning solves messy job advertisements.
+Fine-tuning also lifted base-8B exact records from **80% to 100%** through full-title preservation. Latency was similar. The parser reached 99%, while the 20-ad check regressed to 18/20 against both baselines’ 20/20. Costs use actual tokens at published uncached rates, exclude training and are not invoices; the timeout and repeated baseline pass remain in the evidence. These small sets do not establish production quality.
 
 ### TabPFN helps choose the next investigation
 
-Shortlist uses **TabPFN-3.5** to rank candidates from information available before verification. Unknown information stays unknown. You can select a candidate, investigate it, and return to the same shortlist.
+**The agent asks TabPFN which leads to verify first.** A Mastra `triage` step freezes six pre-check features, ranks the leads and checks only the top three by default. It explains each check or skip and logs outcomes for independent review, without retraining or turning rankings into verdicts.
 
-The distinction matters: a model can help allocate attention, while the employer’s checked source determines the availability finding.
+On the frozen 30-row test, TabPFN reached **0.923 average precision**, against **0.893** for logistic regression and older-first checking. All 17 absent postings were already publisher-marked INACTIVE and validation tied, so this is retrospective evidence, not production accuracy.
 
-For someone comparing several roles, the useful output is a manageable order in which to investigate. Shortlist displays relative ranks, including shared ranks for ties. It preserves unknown inputs instead of turning missing information into invented certainty. Choosing a row carries the posting into the investigation form, and returning to Shortlist keeps the earlier entries and ranking available.
+Both models ran through the live Render application on **November 1, 2026**.
 
-In the fixed 30-record test, TabPFN achieved **0.923 average precision**, compared with **0.893** for logistic regression and an age heuristic. At a budget of six checks, it selected six exact-ID absences with zero false positives; the baselines selected five with one false positive. The dataset was small and retrospective, and its test negatives were already publisher-marked inactive. These results demonstrate prioritization on that dataset, not production accuracy.
-
-The validation set produced tied feature vectors and no improvement over the baselines. I kept that result alongside the test comparison because ranking should earn its place through useful ordering, not through a confident-looking score.
-
-The [model experiments](https://github.com/himanshu748/vacancy-autopsy/blob/main/outputs/vacancy-autopsy/docs/MODEL-EXPERIMENTS.md) include the splits, baselines and limitations.
+The [model experiments](https://github.com/himanshu748/vacancy-autopsy/blob/main/outputs/vacancy-autopsy/docs/MODEL-EXPERIMENTS.md) contain the complete results and limits.
 
 ### Follow the opening back to its source
 
