@@ -1,5 +1,6 @@
 """Offline checks protecting benchmark accounting and summary definitions."""
 import unittest
+from concurrent.futures import TimeoutError as FutureWaitTimeout
 from pathlib import Path
 import sys
 
@@ -24,7 +25,7 @@ class BenchmarkAccountingTests(unittest.TestCase):
             def result(self, timeout):
                 self.calls += 1
                 if self.calls == 1:
-                    raise TimeoutError()
+                    raise FutureWaitTimeout()
                 return "original accepted result"
             def done(self):
                 return False
@@ -37,10 +38,10 @@ class BenchmarkAccountingTests(unittest.TestCase):
     def test_terminal_future_timeout_is_not_polled_as_pending(self):
         class FailedFuture:
             def result(self, timeout):
-                raise TimeoutError()
+                raise FutureWaitTimeout()
             def done(self):
                 return True
-        with self.assertRaises(TimeoutError):
+        with self.assertRaises(FutureWaitTimeout):
             wait_same_future(FailedFuture(), 180, lambda: self.fail("terminal future marked pending"))
 
     def test_budget_reserves_full_next_response_and_rejects_overage(self):
