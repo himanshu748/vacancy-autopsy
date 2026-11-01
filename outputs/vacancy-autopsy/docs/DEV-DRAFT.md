@@ -30,8 +30,9 @@ My take on **Ghost in the Machine** is an advertisement that seems alive online 
 
 ## Demo
 
-<!-- PUBLICATION GATE: insert the verified live Render URL and tested judge-access instructions here. Do not publish a placeholder or describe local hosting as a deployed demo. -->
-**Draft: the public demo link is awaiting the verified Render deployment.**
+[Open the read-only source finding](https://vacancy-autopsy.onrender.com/?shared=53f29d77e07df8164037f8cc6bbc4f210c806f80163c69d98733b5efcab4f4c4). No account is needed. It shows a real Software Engineer Intern posting present in Semgrep's checked source, with its timestamp, official link and qualified finding.
+
+[Open the live Render app](https://vacancy-autopsy.onrender.com). The investigation workspace requires an authorized reviewer account; the shared finding is the public demonstration. It exposes source references while keeping private inputs, captured bodies and reviewer identity protected.
 
 The walkthrough follows one task:
 
@@ -83,7 +84,9 @@ This gives discovery and verification different jobs. Search helps you find a ca
 
 **Mastra** coordinates the verification workflow. **Temporal** makes the local investigation resumable through worker failures. **MongoDB Atlas** stores saved checks, captures and private approvals so a restart does not erase the applicant’s work.
 
-**Sentry** traces the tools when something goes wrong. It helped uncover a search adapter that discarded usable results when one URL was malformed. **Auth0** protects the reviewer’s private workspace and approval of an exact report. Public sharing remains disabled in the current app.
+**Sentry** traces the tools when something goes wrong. It helped uncover a search adapter that discarded usable results when one URL was malformed. **Auth0** protects the reviewer’s private workspace and approval of an exact report. Only a specifically reviewed source-only finding becomes public.
+
+When the exact opening is absent, **Ultramarine** can help find another direction. It compares a supplied public role title with postings in the checked employer inventory and suggests possible alternatives. One live call considered 20 of 140 retained postings, selected three, and used 792 input plus 47 output tokens, an estimated **$0.0001423** at the recorded rates. The links come from the source; they are different posting IDs, not confirmed reposts.
 
 ### An answer you can act on
 
@@ -91,7 +94,7 @@ The result view puts the finding ahead of the investigation machinery. A verifie
 
 The timeline and source records sit behind that first answer. They give an interested reader a way to inspect the check without making every applicant read a technical report. Rechecking creates another observation and preserves the original, so an answer from yesterday remains identifiable as yesterday’s answer.
 
-<!-- Add the verified Render runtime paragraph after deployment succeeds. Keep account setup, card details, credit balances and deployment troubleshooting out of the published product story. -->
+**Render** hosts the frontend, investigation API and Python model clients in one live application. An applicant can read a listing, choose a checking budget and return to the saved findings in the same workspace. The hosted verifier uses Mastra directly; the separate Temporal recovery path remains local.
 
 ## Why Does Open Innovation Matter?
 
@@ -123,6 +126,7 @@ Featured categories:
 
 - **Best Use of Tinker:** the trained Qwen listing reader and its baseline comparison.
 - **Best Use of TabPFN:** the pre-verification Shortlist ranker and evaluation.
+- **Best Use of Render:** the live AI workspace and persistent model-operation runtime.
 
 Additional categories:
 
@@ -131,6 +135,7 @@ Additional categories:
 - **Best Use of Mastra:** the open-source verification workflow.
 - **Best Use of Temporal:** durable local investigations and tested worker recovery.
 - **Best Use of MongoDB Atlas:** persistent saved checks, captures and private approvals.
+- **Best Use of Ultramarine:** source-bound current-opening alternatives with a recorded live token-cost estimate.
 - **Best Use of Sentry Agent Tracing:** tool tracing used to diagnose actual search failures.
 - **Best Use of Auth0 for AI Agents:** authenticated reviewer access and approval of an exact report.
 
