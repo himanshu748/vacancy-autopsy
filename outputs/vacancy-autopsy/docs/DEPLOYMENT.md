@@ -1,4 +1,12 @@
-# Hosted deployment preparation
+# Hosted deployment
+
+## Live model check, November 1, 2026
+
+The approved Render deployment is live at https://vacancy-autopsy.onrender.com. The authenticated browser workspace successfully ran the fine-tuned Tinker listing reader on a retained real OppIDX advertisement and TabPFN Shortlist on two retained real advertisements. The reader returned grounded candidate identity fields; the ranker returned an explicit tie with missing features left unknown. Neither output was an availability verdict.
+
+Receipts: [`render-live-tinker.json`](../../evidence/render-live-tinker.json) and [`render-live-tabpfn.json`](../../evidence/render-live-tabpfn.json). Their click-to-observation latency values are upper bounds including observation delay, not isolated provider timings. Both successful paths establish that the required model settings were usable; no missing Render secret or environment variable was observed. Runtime health and benchmark quality are separate claims.
+
+The preparation notes below describe the earlier approval and provisioning stages. Their historical statements that deployment had not happened are superseded by the live receipt above. Optional Temporal execution remains local; the hosted service uses direct Mastra execution.
 
 The reviewable full-model candidate is [deploy/render-full.yaml.example](../deploy/render-full.yaml.example), with a Dockerfile that builds the React frontend and installs both Python API clients. It has **not been applied**, and it is deliberately not named `render.yaml` at the repository root. The application source was committed and pushed as `4c899541cb617efaf4c244a3f6cc588c9eaab0d4`, and the repository/source ZIP are public under explicit approval. This source release does not establish a deployment.
 

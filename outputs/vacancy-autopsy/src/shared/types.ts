@@ -46,6 +46,7 @@ export interface SponsorStatus {
   name: string;
   status:
     | "local_verified"
+    | "runtime_verified"
     | "configured_unverified"
     | "not_configured"
     | "not_implemented";

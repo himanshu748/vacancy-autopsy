@@ -78,6 +78,8 @@ export interface PriorityOptions {
   pythonPath?: string;
   token?: string;
   runner?: PriorityRunner;
+  /** Runtime observation only; called after a validated successful response. */
+  onVerified?: () => void;
 }
 
 /** Derive only pre-verification features. Missing user knowledge never becomes zero. */
@@ -302,7 +304,7 @@ export async function registerPriorityRoutes(
         pythonPath: options.pythonPath,
         signal: controller.signal,
       };
-      return await traceOperation("model.rank", async () => {
+      const result = await traceOperation("model.rank", async () => {
         const raw = await run({ rows }, context);
         modelReturned = true;
         if (controller.signal.aborted) throw new Error("Priority cancelled");
@@ -319,6 +321,9 @@ export async function registerPriorityRoutes(
         }
         return modelReturned ? "invalid_response" : "provider_error";
       });
+      // Health instrumentation must not turn a valid ranking into an error.
+      try { options.onVerified?.(); } catch { /* Best-effort runtime observation. */ }
+      return result;
     } catch (failure) {
       if (
         failure instanceof PriorityFailure &&

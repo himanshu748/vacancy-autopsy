@@ -116,6 +116,8 @@ export async function createApp(options: AppOptions) {
     }
   });
   let successfulWorkflowRuns = 0;
+  let successfulExtractionRuns = 0;
+  let successfulPriorityRuns = 0;
   let activeChecks = 0;
   const reviewerOrigin = options.reviewer ? new URL(options.reviewer.issuer).origin : '';
 
@@ -150,8 +152,10 @@ export async function createApp(options: AppOptions) {
         detail: successfulWorkflowRuns > 0 ? 'The deterministic investigation workflow completed locally. No model or agent inference is implied.' : 'Workflow is installed; no completed run observed in this process yet.' },
       { name: 'MongoDB Atlas', status: options.store.kind === 'mongodb' ? 'configured_unverified' : 'not_configured',
         detail: options.store.kind === 'mongodb' ? 'MongoDB connection active. Atlas hosting and a saved read/write receipt must be independently verified.' : 'Reports use local files. Atlas is not configured.' },
-      { name: 'Tinker', status: options.extraction?.artifactPath && options.extraction?.pythonPath ? 'configured_unverified' : 'not_configured', detail: 'A private fine-tuned identity extractor can be configured. Successful inference and model benchmark results are recorded separately.' },
-      { name: 'TabPFN', status: options.priority?.contextPath && options.priority?.pythonPath ? 'configured_unverified' : 'not_configured', detail: 'A pre-verification shortlist ranker can be configured. Ranking is separate from opening availability; benchmark limits are documented.' },
+      { name: 'Tinker', status: successfulExtractionRuns > 0 ? 'runtime_verified' : options.extraction?.artifactPath && options.extraction?.pythonPath ? 'configured_unverified' : 'not_configured',
+        detail: successfulExtractionRuns > 0 ? 'A listing read completed and its identity response was validated in this process. This resets at restart and does not establish benchmark quality or opening availability.' : 'A private fine-tuned identity extractor can be configured. No validated successful inference has been observed in this process.' },
+      { name: 'TabPFN', status: successfulPriorityRuns > 0 ? 'runtime_verified' : options.priority?.contextPath && options.priority?.pythonPath ? 'configured_unverified' : 'not_configured',
+        detail: successfulPriorityRuns > 0 ? 'A shortlist ranking completed and its response was validated in this process. This resets at restart; ranking is never an opening-availability verdict.' : 'A pre-verification shortlist ranker can be configured. No validated successful ranking has been observed in this process.' },
       pending('Render', 'No hosted deployment has been verified.'),
       { name: 'SerpApi', status: options.research?.discovery?.apiKey ? 'configured_unverified' : 'not_configured', detail: 'Bounded source discovery is implemented. Live provider evidence is tracked separately.' },
       { name: 'Browserbase', status: options.research?.capture?.apiKey ? 'configured_unverified' : 'not_configured', detail: 'Private browser-artifact capture is implemented. A successful live capture is still required.' },
@@ -162,8 +166,14 @@ export async function createApp(options: AppOptions) {
     ] };
   });
   await registerResearchRoutes(app, options.research);
-  await registerExtractionRoutes(app, options.extraction);
-  await registerPriorityRoutes(app, options.priority);
+  await registerExtractionRoutes(app, { ...options.extraction, onVerified: () => {
+    successfulExtractionRuns++;
+    options.extraction?.onVerified?.();
+  } });
+  await registerPriorityRoutes(app, { ...options.priority, onVerified: () => {
+    successfulPriorityRuns++;
+    options.priority?.onVerified?.();
+  } });
   app.get('/api/reviewer-config', async () => options.reviewer?.clientId
     ? { configured: true, requiresAuthentication: Boolean(publicOrigin), sharingEnabled: Boolean(options.sharing), issuer: options.reviewer.issuer, audience: options.reviewer.audience, clientId: options.reviewer.clientId }
     : { configured: false, requiresAuthentication: false, sharingEnabled: false });

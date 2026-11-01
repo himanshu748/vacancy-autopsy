@@ -1,5 +1,7 @@
 # Ten sponsor targets — evidence before entry
 
+November 1 hosted update: both Tinker listing extraction and TabPFN Shortlist completed through the authenticated Render application. Their sanitized browser receipts are `outputs/evidence/render-live-tinker.json` and `outputs/evidence/render-live-tabpfn.json` at the workspace root. No missing model setting surfaced. These establish hosted execution, not improved model quality or organizer acceptance. Earlier local-only and deployment-pending descriptions below are historical; see [DEPLOYMENT.md](DEPLOYMENT.md) for the current boundary.
+
 Checked against [the HF26 hub](https://dev.to/challenges/hf26) and [Week 4 (event 82)](https://dev.to/challenges/hacktoberfest-week4-2026-10-26) on October 30, 2026. All ten categories below are listed. A project can qualify for several, but can win only once per challenge. Category eligibility is not a claim that this build meets the category's acceptance standard.
 
 | Target | Current implementation | Required successful evidence before claiming |

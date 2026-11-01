@@ -40,6 +40,8 @@ export interface ExtractionOptions {
   apiKey?: string;
   projectId?: string;
   runner?: ExtractionRunner;
+  /** Runtime observation only; called after a validated successful response. */
+  onVerified?: () => void;
 }
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -269,7 +271,7 @@ export async function registerExtractionRoutes(
           : undefined,
         signal: controller.signal,
       };
-      return await traceOperation("model.extract", async () => {
+      const result = await traceOperation("model.extract", async () => {
         const raw = await run(input.data, context);
         modelReturned = true;
         if (controller.signal.aborted) throw new Error("Extraction cancelled");
@@ -283,6 +285,9 @@ export async function registerExtractionRoutes(
       }, { "va.provider": "tinker" }, () => "success", () =>
         controller.signal.aborted ? "cancelled" : modelReturned ? "invalid_response" : "provider_error",
       );
+      // Health instrumentation must not turn a valid model response into an error.
+      try { options.onVerified?.(); } catch { /* Best-effort runtime observation. */ }
+      return result;
     } catch {
       return reply
         .code(502)
