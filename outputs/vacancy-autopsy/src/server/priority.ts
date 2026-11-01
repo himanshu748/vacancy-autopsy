@@ -161,7 +161,7 @@ class PriorityFailure extends Error {
     super("Shortlist priority unavailable");
   }
 }
-function nativeRunner(options: PriorityOptions): PriorityRunner {
+export function createPriorityRunner(options: PriorityOptions): PriorityRunner {
   return (input, context) =>
     new Promise((resolveResult, reject) => {
       if (context.signal.aborted) {
@@ -269,7 +269,7 @@ export async function registerPriorityRoutes(
   options: PriorityOptions = {},
 ): Promise<void> {
   let active = false;
-  const run = options.runner ?? nativeRunner(options);
+  const run = options.runner ?? createPriorityRunner(options);
   app.post("/api/priority", { bodyLimit: 180_000 }, async (request, reply) => {
     const parsed = priorityInputSchema.safeParse(request.body);
     if (!parsed.success)

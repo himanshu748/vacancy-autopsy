@@ -1372,6 +1372,10 @@ footer { font-size: 10px; }
 .shortlist-intro h2 { font: normal 31px/1.2 var(--serif); }
 .shortlist-intro > p:last-child { font-size: 13px; line-height: 1.8; color: #5a6750; }
 .shortlist-entry-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.shortlist-paste { margin-bottom: 24px; padding: 16px 20px; border: 1px solid var(--line); border-radius: 6px; }
+.shortlist-paste summary { cursor: pointer; font-size: 13px; padding-block: 8px; }
+.shortlist-paste label { display: block; font-size: 12px; margin: 18px 0 8px; }
+.shortlist-paste textarea { width: 100%; padding: 12px; min-height: 120px; border: 1px solid #c9d4bc; border-radius: 4px; background: #fffef9; color: var(--ink); font-size: 16px; margin-bottom: 12px; }
 .shortlist-entry { min-width: 0; margin: 0; padding: 21px; border: 1px solid #d1dbc5; border-radius: 6px; background: #fafbf4; }
 .shortlist-entry legend { font: 9px var(--mono); padding: 0 7px; color: #607252; }
 .shortlist-entry-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 12px; }
@@ -1399,6 +1403,27 @@ footer { font-size: 10px; }
 .shortlist-result-content > p { font-size: 11px; line-height: 1.8; color: #596a4d; }
 .shortlist-result-content button { margin-top: 12px; }
 .shortlist-tie-note, .shortlist-model-note { font-size: 11px; line-height: 1.8; color: #576b48; max-width: 680px; margin-top: 13px; }
+.triage-budget { margin-top: 24px; padding: 20px 0; border-block: 1px solid var(--line); display: grid; grid-template-columns: minmax(140px,1fr) 90px 2fr; align-items: center; gap: 18px; }
+.triage-budget label { font-size: 12px; font-weight: 600; }
+.triage-budget input { width: 90px; min-height: 44px; padding: 10px; border: 1px solid #c9d4bc; border-radius: 4px; background: #fffef9; color: var(--ink); font-size: 16px; }
+.triage-budget p { font-size: 12px; line-height: 1.7; color: #526247; }
+.triage-results { margin: 24px 0 38px; padding: clamp(20px,3vw,36px); border: 1px solid #c9d4bc; border-radius: 8px; background: #fafbf4; scroll-margin-top: 20px; }
+.triage-results:focus-visible { outline: 2px solid #315438; outline-offset: 4px; }
+.triage-result-heading { display: flex; justify-content: space-between; align-items: start; gap: 30px; flex-wrap: wrap; }
+.triage-result-heading h2 { font: normal clamp(28px,3vw,38px)/1.15 var(--serif); margin: 12px 0; }
+.triage-result-heading p { font-size: 12px; line-height: 1.7; color: #526247; }
+.triage-summary { display: flex; gap: 26px; margin: 0; }
+.triage-summary dt { font: 9px/1.6 var(--mono); text-transform: uppercase; color: #526247; }
+.triage-summary dd { font: normal 30px/1.3 var(--serif); margin: 5px 0; }
+.triage-results ol { list-style: none; padding: 0; margin: 24px 0; }
+.triage-results li { display: flex; gap: 18px; padding: 22px 0; border-top: 1px solid var(--line); }
+.triage-lead { min-width: 0; }
+.triage-lead h3 { font: normal 24px/1.3 var(--serif); margin: 6px 0; overflow-wrap: anywhere; }
+.triage-lead p { font-size: 12px; line-height: 1.7; margin-top: 5px; }
+.triage-source { color: #526247; overflow-wrap: anywhere; }
+.triage-finding { font-weight: 600; }
+.triage-lead button { margin-top: 12px; }
+@media(max-width:760px) { .triage-budget { grid-template-columns: 1fr 90px; } .triage-budget p { grid-column: 1 / -1; } .triage-summary { gap: 20px; } .triage-summary dd { font-size: 25px; } .triage-results li { gap: 12px; } }
 @media(max-width:760px) { .shortlist-intro { grid-template-columns: 1fr; gap: 12px; } .shortlist-entry-list { grid-template-columns: 1fr; } .shortlist-entry { padding: 18px; } .shortlist-entry input { font-size: 16px; } .shortlist-actions .primary-button { width: 100%; } .shortlist-actions { gap: 15px; } .header nav { gap: 13px; } .header nav button { font-size: 9px; } .shortlist-results li { gap: 13px; } }
 
 /* Shared findings use the same quiet paper-and-ink hierarchy as the desk. */

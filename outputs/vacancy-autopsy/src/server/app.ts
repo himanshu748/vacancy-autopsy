@@ -16,6 +16,7 @@ import { registerExtractionRoutes, type ExtractionOptions } from './extraction.j
 import { registerPriorityRoutes, type PriorityOptions } from './priority.js';
 import { registerReleaseRoutes, type SharingOptions } from './releases.js';
 import { CaptureLinkageError, loadCapturedLinkage } from './capture-linkage.js';
+import { registerTriageRoutes, type TriageHistory } from './triage.js';
 
 export interface AppOptions {
   store: InvestigationStore;
@@ -26,6 +27,7 @@ export interface AppOptions {
   research?: ResearchOptions;
   extraction?: ExtractionOptions;
   priority?: PriorityOptions;
+  triage?: { history: TriageHistory };
   reviewer?: Omit<ApprovalRouteOptions, 'reports'> & { issuer: string; audience: string; clientId?: string };
   sentryEnabled?: boolean;
   /** Explicit opt-in only; immutable private reports are never served publicly. */
@@ -170,10 +172,15 @@ export async function createApp(options: AppOptions) {
     successfulExtractionRuns++;
     options.extraction?.onVerified?.();
   } });
-  await registerPriorityRoutes(app, { ...options.priority, onVerified: () => {
+  const priorityOptions = { ...options.priority, onVerified: () => {
     successfulPriorityRuns++;
     options.priority?.onVerified?.();
-  } });
+  } };
+  await registerPriorityRoutes(app, priorityOptions);
+  if (options.triage) await registerTriageRoutes(app, { priority: priorityOptions,
+    history: options.triage.history, store: options.store, fetcher: options.fetcher,
+    artifacts: options.research?.artifacts, executeInvestigation: options.executeInvestigation,
+    onInvestigation: () => { successfulWorkflowRuns++; } });
   app.get('/api/reviewer-config', async () => options.reviewer?.clientId
     ? { configured: true, requiresAuthentication: Boolean(publicOrigin), sharingEnabled: Boolean(options.sharing), issuer: options.reviewer.issuer, audience: options.reviewer.audience, clientId: options.reviewer.clientId }
     : { configured: false, requiresAuthentication: false, sharingEnabled: false });

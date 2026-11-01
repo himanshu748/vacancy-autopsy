@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { authorizedFetch } from "./workspace-auth";
+import { triageResultSchema, type TriageResult } from "../shared/triage";
 
 export interface ShortlistChoice {
   url: string;
@@ -101,9 +102,11 @@ function readRanking(value: unknown, entries: Entry[]): Ranked[] {
 /** A user-triggered relative checking order. This component never verifies a job. */
 export function Shortlist({
   onChoose,
+  onTriaged,
   disabled = false,
 }: {
   onChoose: (choice: ShortlistChoice) => void;
+  onTriaged: (result: TriageResult) => void;
   disabled?: boolean;
 }) {
   const [entries, setEntries] = useState<Entry[]>(() => [
@@ -113,6 +116,10 @@ export function Shortlist({
   const [ranked, setRanked] = useState<Ranked[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [budget, setBudget] = useState("3");
+  const [triaging, setTriaging] = useState(false);
+  const [historyRows, setHistoryRows] = useState<number | null>(null);
+  const [pastedLinks, setPastedLinks] = useState("");
   const nextId = useRef(3);
   const current = useRef<AbortController | null>(null);
   const resultsRef = useRef<HTMLElement>(null);
@@ -123,6 +130,17 @@ export function Shortlist({
     },
     [],
   );
+  useEffect(() => {
+    const controller = new AbortController();
+    void authorizedFetch("/api/triage/history", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const body = await response.json();
+        if (!controller.signal.aborted && Number.isSafeInteger(body.historyRows) && body.historyRows >= 0)
+          setHistoryRows(body.historyRows);
+      }).catch(() => {});
+    return () => controller.abort();
+  }, []);
   function change(id: string, name: keyof Omit<Entry, "id">, value: string) {
     setEntries((rows) =>
       rows.map((row) => (row.id === id ? { ...row, [name]: value } : row)),
@@ -142,15 +160,36 @@ export function Shortlist({
     setRanked(null);
     setError("");
   }
+  function usePastedLinks() {
+    try {
+      const urls = [...new Set(pastedLinks.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+        const url = new URL(line);
+        if (url.protocol !== "https:" || url.username || url.password || url.port || line.length > 2000)
+          throw new Error("invalid_links");
+        return cleanUrl(url.href);
+      }))];
+      if (urls.length < 2 || urls.length > 20) throw new Error("invalid_links");
+      setEntries(urls.map((url) => ({ ...emptyEntry(nextId.current++), url })));
+      setRanked(null);
+      setError("");
+    } catch {
+      setError("Paste 2–20 different public HTTPS job links, one per line. Your current openings are unchanged.");
+    }
+  }
   async function prioritize(event: FormEvent) {
     event.preventDefault();
     if (busy || disabled) return;
+    const triage = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "triage";
     const controller = new AbortController();
     current.current = controller;
     setError("");
     setRanked(null);
+    setTriaging(triage);
     setBusy(true);
     try {
+      const checkBudget = Number(budget);
+      if (triage && (!Number.isInteger(checkBudget) || checkBudget < 1 || checkBudget > 20))
+        throw new Error("invalid_budget");
       const payload = {
         entries: entries.map((entry) => ({
           id: entry.id,
@@ -163,13 +202,13 @@ export function Shortlist({
             : {}),
         })),
       };
-      const response = await authorizedFetch("/api/priority", {
+      const response = await authorizedFetch(triage ? "/api/triage" : "/api/priority", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(triage ? { ...payload, budget: checkBudget } : payload),
         signal: AbortSignal.any([
           controller.signal,
-          AbortSignal.timeout(50_000),
+          AbortSignal.timeout(triage ? 180_000 : 50_000),
         ]),
       });
       const body: unknown = await response.json().catch(() => null);
@@ -194,6 +233,17 @@ export function Shortlist({
                       : "failed",
         );
       }
+      if (triage) {
+        const result = triageResultSchema.parse(body);
+        const ids = new Set(entries.map((entry) => entry.id));
+        if (result.total !== entries.length || result.checkBudget !== Math.min(checkBudget, entries.length) ||
+          result.ranked.some((lead) => !ids.delete(lead.id))) throw new Error("invalid_response");
+        if (current.current === controller && !controller.signal.aborted) {
+          setHistoryRows(result.historyRows);
+          onTriaged(result);
+        }
+        return;
+      }
       const result = readRanking(body, entries);
       if (current.current === controller && !controller.signal.aborted) {
         setRanked(result);
@@ -202,6 +252,7 @@ export function Shortlist({
     } catch (failure) {
       if (current.current !== controller || controller.signal.aborted) return;
       const messages: Record<string, string> = {
+        invalid_budget: "Choose a whole-number check budget from 1 to 20.",
         invalid_context:
           "Use a nonnegative age and whole-number repost count, or leave them blank.",
         invalid_input:
@@ -218,10 +269,12 @@ export function Shortlist({
       };
       setError(
         failure instanceof Error && failure.name === "TimeoutError"
-          ? "The request timed out. Keep this shortlist unchanged; a submitted prediction may still finish."
+          ? triage ? "The browser stopped waiting. Check Saved checks before starting again; completed investigations may already be saved." : "The request timed out. Keep this shortlist unchanged; a submitted prediction may still finish."
           : failure instanceof Error && messages[failure.message]
             ? messages[failure.message]
-            : "The shortlist could not be prioritized. Your openings have not been verified.",
+            : triage
+              ? "Triage did not finish. Check Saved checks before running again; completed investigations may already be saved."
+              : "The shortlist could not be prioritized. Your openings have not been verified.",
       );
     } finally {
       if (current.current === controller) {
@@ -243,6 +296,16 @@ export function Shortlist({
         </p>
       </div>
       <form onSubmit={(event) => void prioritize(event)}>
+        <details className="shortlist-paste">
+          <summary>Have a list of links? Paste them together.</summary>
+          <label htmlFor="shortlist-pasted-links">One public job link per line</label>
+          <textarea id="shortlist-pasted-links" rows={4} value={pastedLinks}
+            onChange={(event) => setPastedLinks(event.target.value)} disabled={busy || disabled}
+            placeholder="https://jobs.ashbyhq.com/…" />
+          <button type="button" className="secondary-button" onClick={usePastedLinks}
+            disabled={busy || disabled || !pastedLinks.trim()}>Use pasted links</button>
+          <p className="field-help">Replaces the openings below. Duplicate links are combined; unknown details stay blank.</p>
+        </details>
         <div className="shortlist-entry-list">
           {entries.map((entry, index) => (
             <fieldset
@@ -349,6 +412,12 @@ export function Shortlist({
             </fieldset>
           ))}
         </div>
+        <div className="triage-budget">
+          <label htmlFor="triage-budget">Maximum source checks</label>
+          <input id="triage-budget" type="number" min="1" max="20" step="1"
+            value={budget} onChange={(event) => setBudget(event.target.value)} disabled={busy || disabled} />
+          <p>The agent asks TabPFN what to check first, then checks only the leads within your budget.</p>
+        </div>
         <div className="shortlist-actions">
           <button
             type="button"
@@ -361,20 +430,25 @@ export function Shortlist({
           <button
             type="submit"
             className="primary-button"
+            value="triage"
             disabled={busy || disabled}
           >
-            {busy ? "Prioritizing your shortlist…" : "Prioritize shortlist"}
+            {busy && triaging ? "Prioritizing and checking…" : "Investigate within budget"}
             <span aria-hidden="true">↗</span>
+          </button>
+          <button type="submit" value="rank" className="secondary-button" disabled={busy || disabled}>
+            {busy && !triaging ? "Prioritizing your shortlist…" : "Prioritize shortlist"}
           </button>
         </div>
         <p className="field-help">
           2–20 openings. This suggests a checking order; it does not decide
           whether a job is available.
         </p>
+        <p className="field-help">{historyRows === null ? "History count unavailable." : `${historyRows} agent-collected history rows.`} No automatic retraining.</p>
       </form>
       {busy && (
         <p role="status" className="shortlist-pending">
-          Comparing the details you provided…
+          {triaging ? "Ranking the leads, checking the selected sources, and saving the outcomes…" : "Comparing the details you provided…"}
         </p>
       )}
       {error && (

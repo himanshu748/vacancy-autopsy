@@ -13,6 +13,7 @@ import { connectMongoWorkspace, type MongoWorkspace } from './mongo-workspace.js
 import { onceCleanup, settleCleanup } from './shutdown.js';
 import { resolvePublicOrigin } from './hosting.js';
 import { LocalReleaseStore, MongoReleaseStore, type ReleaseStore } from './releases.js';
+import { LocalTriageHistory, resolveTriageHistoryPath } from './triage.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const port = z.coerce.number().int().min(1).max(65535).parse(process.env.PORT ?? 8787);
@@ -34,6 +35,9 @@ try {
   if (process.env.PUBLIC_SHARING_ENABLED && !['true', 'false'].includes(process.env.PUBLIC_SHARING_ENABLED)) throw new Error('PUBLIC_SHARING_ENABLED must be true or false.');
   const sharingEnabled = process.env.PUBLIC_SHARING_ENABLED === 'true';
   const dataDirectory = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(root, 'data');
+  const triageHistoryPath = resolveTriageHistoryPath({ dataDirectory,
+    explicitDataDirectory: Boolean(process.env.DATA_DIR), hosted: Boolean(publicOrigin),
+    priorityContextPath: process.env.TABPFN_PRIORITY_CONTEXT });
   const reviewValues = [process.env.AUTH0_ISSUER_BASE_URL, process.env.AUTH0_AUDIENCE];
   if (reviewValues.some(Boolean) && !reviewValues.every(Boolean)) throw new Error('Complete Auth0 configuration is required.');
   const authenticator = process.env.AUTH0_ISSUER_BASE_URL && process.env.AUTH0_AUDIENCE
@@ -67,6 +71,7 @@ try {
     executeInvestigation: durableExecutor?.execute, sentryEnabled, reviewer, publicOrigin,
     sharing: releases ? { releases } : undefined,
     priority: { contextPath: process.env.TABPFN_PRIORITY_CONTEXT, pythonPath: process.env.TABPFN_PYTHON },
+    triage: triageHistoryPath ? { history: new LocalTriageHistory(triageHistoryPath) } : undefined,
     extraction: { artifactPath: process.env.TINKER_EXTRACTOR_ARTIFACT,
       pythonPath: process.env.TINKER_PYTHON, tokenizerCachePath: process.env.TINKER_TOKENIZER_CACHE },
     research: { artifacts: workspace?.artifacts ?? new LocalArtifactStore(resolve(dataDirectory, 'sources')),

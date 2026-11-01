@@ -13,6 +13,8 @@ import { authorizedFetch, hasWorkspaceCallback } from "./workspace-auth";
 import { ProductLanding } from "./ProductLanding";
 import { ListingAssistant } from "./ListingAssistant";
 import { Shortlist } from "./Shortlist";
+import { TriageResults } from "./TriageResults";
+import type { TriageResult } from "../shared/triage";
 import { replacementCaptureForReport } from "../shared/capture-selection";
 
 const verdicts: Record<
@@ -100,6 +102,7 @@ function InvestigationDesk({ onHome }: { onHome: () => void }) {
   const [advertisementText, setAdvertisementText] = useState("");
   const [captureArtifactId, setCaptureArtifactId] = useState<string | null>(null);
   const [record, setRecord] = useState<Investigation | null>(null);
+  const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
   const [history, setHistory] = useState<Investigation[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -336,6 +339,16 @@ function InvestigationDesk({ onHome }: { onHome: () => void }) {
                 </p>
               </section>
 
+              {triageResult && <TriageResults result={triageResult} disabled={busy}
+                onOpenReport={(reportId) => {
+                  setBusy(true);
+                  setError("");
+                  void api<Investigation>(`/api/investigations/${reportId}`)
+                    .then(update)
+                    .catch(() => setError("The saved source finding could not be opened. Try it from Saved checks."))
+                    .finally(() => setBusy(false));
+                }} />}
+
               <section className="desk" aria-label="Investigation workspace">
                 <div className="intake">
                   <div className="section-kicker">
@@ -506,6 +519,15 @@ function InvestigationDesk({ onHome }: { onHome: () => void }) {
             <h1 id="shortlist-page-title">Your next checks.</h1>
             <Shortlist
               disabled={busy}
+              onTriaged={(result) => {
+                setTriageResult(result);
+                setPage("desk");
+                void loadHistory("The new checks are saved, but the archive could not be refreshed.");
+                requestAnimationFrame(() => {
+                  document.getElementById("triage-results")?.focus({ preventScroll: true });
+                  document.getElementById("triage-results")?.scrollIntoView({ block: "start" });
+                });
+              }}
               onChoose={({ url: chosenUrl, officialUrl: chosenOfficial }) => {
                 setCaptureArtifactId(null);
                 setUrl(chosenUrl);
