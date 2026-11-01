@@ -50,8 +50,8 @@ From the signed-in Hacktoberfest offers page, not from inferred billing state:
 - [x] Complete TabPFN evaluation against baselines and exercise real ranking, selection and preserved shortlist state through the browser app.
 - [x] Pass the local Temporal crash/restart test; record actual result in TEMPORAL.md.
 - [ ] Verify Browserbase capture and complete SerpApi's exact first-party-counterpart discovery gate. Atlas application persistence, basic discovery and Sentry request isolation now have live receipts.
-- [ ] Verify Auth0 approval and an authorized persistent Render deployment.
-- [x] Write the evidence-backed DEV entry, review category claims and publish under explicit authorization. The deployed-link/video demo requirement remains open; publication is not organizer acceptance.
+- [x] Verify Auth0 approval and an authorized persistent Render deployment, including actual hosted model calls and triage history after restart.
+- [ ] Publish the revised DEV entry. The requested model replacements are drafted and committed; the current instruction explicitly excludes DEV publication. A separately authorized source-only public demo is available.
 
 The two completed model experiments answer different questions. Tinker reads candidate identity; TabPFN orders checks using pre-verification features. Neither supplies an official availability verdict. The extraction inputs are predominantly native JSON, the later exploratory third-party extraction check regressed, and every negative in the small priority test was already publisher-marked INACTIVE. Preserve those limits alongside the measured improvements. See [MODEL-EXPERIMENTS.md](MODEL-EXPERIMENTS.md).
 
