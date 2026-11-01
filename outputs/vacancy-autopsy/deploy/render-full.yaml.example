@@ -21,8 +21,8 @@ services:
     envVars:
       - key: HOST
         value: 0.0.0.0
-      - key: PUBLIC_ORIGIN
-        sync: false
+      # Uses Render's actual RENDER_EXTERNAL_URL after allocation.
+      # An explicit PUBLIC_ORIGIN may override it for a custom domain.
       - key: MONGODB_URI
         sync: false
       - key: MONGODB_DATABASE

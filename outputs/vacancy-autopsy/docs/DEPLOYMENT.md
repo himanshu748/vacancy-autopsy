@@ -32,7 +32,7 @@ AUTH0_AUDIENCE=YOUR-API-IDENTIFIER
 AUTH0_CLIENT_ID=YOUR-SPA-CLIENT-ID
 ```
 
-Let the host supply `PORT`. `PUBLIC_ORIGIN` must be a public HTTPS origin without a path, query or fragment. Missing required settings or a failed MongoDB connection stops startup; the app does not fall back to ephemeral hosted files. A non-loopback bind without hosted mode is refused.
+Let the host supply `PORT`. On a Render web service, the app uses the documented `RENDER_EXTERNAL_URL` when `PUBLIC_ORIGIN` is absent, so the allocated hostname does not need guessing. This automatic path requires `RENDER=true`, `RENDER_SERVICE_TYPE=web` and a managed HTTPS `*.onrender.com` origin. An explicit `PUBLIC_ORIGIN` takes precedence for a custom domain or other host. Every origin must be public HTTPS without credentials, a path, query or fragment. Missing required settings or a failed MongoDB connection stops startup; the app does not fall back to ephemeral hosted files. A non-loopback bind without hosted mode is refused. [Render default environment variables](https://render.com/docs/environment-variables)
 
 Optional server-only credentials enable individual integrations:
 

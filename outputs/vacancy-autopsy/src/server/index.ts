@@ -11,13 +11,12 @@ import { createAuth0Verifier } from './auth.js';
 import { LocalApprovalStore } from './approvals.js';
 import { connectMongoWorkspace, type MongoWorkspace } from './mongo-workspace.js';
 import { onceCleanup, settleCleanup } from './shutdown.js';
-import { publicUrlSchema } from './schemas.js';
+import { resolvePublicOrigin } from './hosting.js';
 import { LocalReleaseStore, MongoReleaseStore, type ReleaseStore } from './releases.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const port = z.coerce.number().int().min(1).max(65535).parse(process.env.PORT ?? 8787);
-const publicOrigin = process.env.PUBLIC_ORIGIN || undefined;
-const host = process.env.HOST ?? (publicOrigin ? '0.0.0.0' : '127.0.0.1');
+let publicOrigin: string | undefined;
 let app: Awaited<ReturnType<typeof createApp>> | undefined;
 let durableExecutor: Awaited<ReturnType<typeof createTemporalExecutor>> | undefined;
 let workspace: MongoWorkspace | undefined;
@@ -25,13 +24,11 @@ let store: InvestigationStore | undefined;
 let releases: ReleaseStore | undefined;
 let closeApprovals: () => Promise<void> = async () => {};
 try {
+  publicOrigin = resolvePublicOrigin(process.env);
+  const host = process.env.HOST ?? (publicOrigin ? '0.0.0.0' : '127.0.0.1');
   if (!['127.0.0.1', 'localhost', '::1'].includes(host) && !publicOrigin) throw new Error('Network binding requires authenticated hosted mode.');
   if (publicOrigin && (!process.env.MONGODB_URI || !process.env.AUTH0_ISSUER_BASE_URL || !process.env.AUTH0_AUDIENCE || !process.env.AUTH0_CLIENT_ID)) {
     throw new Error('Hosted mode requires persistent MongoDB and complete Auth0 configuration.');
-  }
-  if (publicOrigin) {
-    const parsed = new URL(publicUrlSchema.parse(publicOrigin));
-    if (parsed.pathname !== '/' || parsed.search || parsed.hash) throw new Error('Hosted origin must not contain a path or query.');
   }
   const sentryEnabled = initializeObservability({ dsn: process.env.SENTRY_DSN, environment: process.env.SENTRY_ENVIRONMENT });
   if (process.env.PUBLIC_SHARING_ENABLED && !['true', 'false'].includes(process.env.PUBLIC_SHARING_ENABLED)) throw new Error('PUBLIC_SHARING_ENABLED must be true or false.');

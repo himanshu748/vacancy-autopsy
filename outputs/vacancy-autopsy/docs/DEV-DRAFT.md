@@ -1,115 +1,142 @@
 ---
-title: "The listing is still here. Is the job? Building Vacancy Autopsy."
+title: "Vacancy Autopsy: Is this job still alive?"
 published: false
 tags: devchallenge, hf26challenge
 ---
 
-# The listing is still here. Is the job?
+*This is a submission for the [Hacktoberfest Open-Source AI Challenge Week 4: Ghost in the Machine](https://dev.to/challenges/hacktoberfest-week4-2026-10-26)*
 
 ## What I Built
 
-Applying for a job takes more than a click. You read the description, reshape a résumé, write a note, and then discover that the original opening is no longer easy to find.
+A job advertisement can have a title, a description, and an Apply button even when you cannot find the opening on the employer’s own board.
 
-Vacancy Autopsy puts a small check before that investment: **can this exact advertised opening still be verified at its employer?**
+That is a frustrating point to discover after writing a cover letter.
 
-The landing page says what the product helps you do: “Before you apply, know where the job stands.” Open the workspace, paste a job link, and get a finding with a useful next action. A verified opening links back to its employer. An absent ID tells you what was checked and when. An uncertain match asks for stronger source information. Source details and downloads are available behind the finding, rather than becoming the whole product.
+**Vacancy Autopsy helps you check an opening before you spend your evening applying.** Paste a job link, follow it back to its employer, and see where it stands:
 
-My interpretation of “Ghost in the Machine” is a listing that outlives the source it points to. The useful question is not whether an employer is dishonest. It is whether an applicant can still find this exact opening at its original source.
+- **Verified open:** the exact posting appears in the employer’s checked job feed.
+- **Not currently listed:** the exact ID is absent from a complete response from that board.
+- **Inconclusive:** the available sources cannot support a reliable answer yet.
+
+Each finding comes with a next step: visit the official opening, look for a repost, or supply a stronger source link. You can open the source records, download the report, and recheck later while keeping the earlier observation.
+
+The person I am building for already has enough tabs open. They might have found the same role on a search engine, a community catalogue and a third-party board, with slightly different titles on each. Before choosing where to apply, they need to know whether those pages point to the same opening and whether that opening can still be found at its source.
+
+Vacancy Autopsy brings that comparison into one workspace. The saved check gives you somewhere to return when a listing resurfaces or a source changes. You can see what was established at the time and decide whether another check would help.
+
+For a messy advertisement, the trained listing reader suggests the employer, role and posting identity. For a long list of possibilities, Shortlist helps you decide which opening to investigate first. The interface changes with what the investigation establishes: a confirmed match gets an official link; an uncertain match asks for the information it still needs.
+
+My take on **Ghost in the Machine** is an advertisement that seems alive online while its original opening is difficult to verify. Vacancy Autopsy gives a job seeker a way to examine that ghost before investing more time in it.
 
 ## Demo
 
-The source release includes a runnable local demo. Render hosting remains pending; there is no public SaaS URL or video in this submission.
+<!-- PUBLICATION GATE: insert the verified live Render URL and tested judge-access instructions here. Do not publish a placeholder or describe local hosting as a deployed demo. -->
+**Draft: the public demo link is awaiting the verified Render deployment.**
 
-```sh
-git clone https://github.com/himanshu748/vacancy-autopsy.git
-cd vacancy-autopsy/outputs/vacancy-autopsy
-npm ci
-npm run build
-npm start
-```
+The walkthrough follows one task:
 
-Open `http://127.0.0.1:8787`. Paste a supported Greenhouse, Lever or Ashby posting URL to exercise the core source verifier, saved checks and evidence downloads. This path needs no sponsor credentials. Model extraction, ranking, remote capture and reviewer sign-in require separately configured provider access; the private trained checkpoint is not distributed. See the [setup guide](https://github.com/himanshu748/vacancy-autopsy/blob/main/outputs/vacancy-autopsy/README.md).
+1. Paste a job advertisement or an official Greenhouse, Lever or Ashby posting.
+2. Read the listing details and confirm the exact official posting link.
+3. Investigate it and get a finding with a useful next action.
+4. Return to Saved checks and recheck the source without losing the original.
 
-In my configured local workspace, the real product has also exercised capture → exact ATS link → complete employer feed, refreshed-snapshot rechecks, and Auth0 permission-denial/private-approval. It holds 20 saved investigations. These provider-backed journeys are described below with their limits; a clean checkout does not inherit my accounts or credentials.
+When starting from a third-party page, the source tools can capture the advertisement and retain its explicit ATS link. You choose that captured link before the official check.
 
-The Semgrep example was verified open at its recorded check time; the Figma example below demonstrates an advertised-source mismatch. These are timestamped observations, not promises that either source remains unchanged when a judge revisits it.
+An official posting URL is the shortest route through the product. A third-party advertisement needs an extra identity step, because a similar title alone is not enough to connect it to an employer opening. The reader helps extract the details, while the captured link gives the verifier a concrete posting to check.
+
+The result is designed to be readable before you open the supporting records. The finding, check time and next action appear together. Source details remain available when you want to understand the answer more closely.
 
 ## Code
 
-[Source code and setup instructions](https://github.com/himanshu748/vacancy-autopsy), licensed under MIT. A [source-only ZIP](https://github.com/himanshu748/vacancy-autopsy/releases/download/hf26-v1/vacancy-autopsy.zip) accompanies the release. Credentials, private model checkpoints, account captures, local observations and agent-session transcripts are excluded. The fine-tuned checkpoint is private; reproducing training or hosted inference requires the reader's own provider access.
+[View Vacancy Autopsy on GitHub](https://github.com/himanshu748/vacancy-autopsy)
 
+The project is MIT-licensed. The [setup guide](https://github.com/himanshu748/vacancy-autopsy/blob/main/outputs/vacancy-autopsy/README.md) covers the local verifier and the provider-backed features. The trained checkpoint requires configured Tinker access.
 
 ## How I Built It
 
-### Three pieces of the product
+### Tinker reads the advertisement
 
-**Read the listing with Tinker.** Public advertisements can bury the employer, full role title, ATS and posting ID inside a page of unrelated text. I fine-tuned Qwen3-8B to return those four fields, and connected the private checkpoint to the workspace's “Read listing details” action. A real browser run extracted Figma, Brand Design Intern (Summer 2027), Greenhouse and posting ID `6144755004` from captured public advertisement text. Extracted fields are suggestions; the model cannot declare a job open or closed.
+The reader has a specific job: turn a page of job text into the employer, full role title, ATS and posting ID. I fine-tuned the open-weight **Qwen3-8B** with Tinker and connected it to “Read listing details” in the workspace.
 
-**Choose the next check with TabPFN.** A shortlist lets an applicant compare several openings before investigating them. TabPFN ranks rows using only information available before an official check, including known listing age, repost count, source type and visible ATS-link information. Unknown information stays unknown. The interface shows a relative order, with shared ranks for ties, rather than presenting a model score as the probability that an employer is dishonest. A real browser run ranked two genuine public advertisements, opened the selected URL in the check form, and preserved the shortlist when returning from that check.
+In the product, that means less copying between an advertisement and the check form. The extracted fields remain suggestions that must be grounded in the supplied text or URL.
 
-**Make the workflow available with Render.** The built frontend, API and durable worker are prepared for hosting, but I have not deployed the service. The existing Render workspace has hackathon credit. I freed one service slot, but the full persistent deployment still requires billing verification. A persistent, authenticated hosted journey remains a release gate. A local app is not being presented as a live Render service.
+A small extraction mistake can send an investigation toward the wrong opening. A shortened title can hide a location qualifier; a page slug can look like an identifier while belonging to the advertisement rather than the employer. I kept the reader’s output narrow and allowed missing fields to stay empty. Its purpose is to make the next check easier to set up accurately.
 
-### What the models actually improved
+On 100 unseen-employer Greenhouse validation records, exact-record accuracy improved from **80% to 100%**, through better preservation of full titles; employer and job-ID accuracy were already 100%. A separate 100-record Ashby JSON test tied at 100%. A later exploratory set of 20 third-party advertisements exposed two tuned-model errors, versus none for the base model. Those results shaped the product: ATS-format and text-grounding checks reject invalid identity suggestions.
 
-Tinker training used 97 public Lever records for one epoch. Employers and actual ATS families were disjoint between training, validation and test.
+These were mostly clean source representations. A deterministic validation parser also reached 99%, so the result supports a specific title-preservation improvement rather than a broad claim that fine-tuning solves messy job advertisements.
 
-On 100 unseen Greenhouse validation page-text rows, exact-record accuracy rose from **80% to 100%** and field micro-F1 from **0.95 to 1.00**. The 20 corrected errors were shortened titles: the tuned model preserved location qualifiers that the base model dropped. Exact posting ID and employer accuracy were already 100%.
+### TabPFN helps choose the next investigation
 
-The single frozen, 100-row Ashby native-JSON test was a **100% versus 100% tie**. All 400 base/tuned comparison outputs were retained, including zero invalid JSON responses or omitted rows. A separate deterministic validation parser already reached 99%, so the practical gain on these clean sources is much smaller than the base-model comparison alone suggests. Representative third-party advertisement accuracy is still unestablished.
+Shortlist uses **TabPFN-3.5** to rank candidates from information available before verification. Unknown information stays unknown. You can select a candidate, investigate it, and return to the same shortlist.
 
-A later exploratory check on 20 complete OppIDX captures exposed a regression: **base 20/20 versus fine-tuned 18/20 exact records**. The tuned model returned a page slug instead of the numeric Greenhouse ID twice. All 40 outputs were retained. These job IDs were absent from the original partitions, but the employers overlapped validation; this was not a new preregistered unseen-employer test. I did not retrain or tune against it. Instead, the product now rejects candidate IDs that fail the ATS format or complete-boundary grounding checks. That is an input-validation repair, not a claim that model accuracy improved.
+The distinction matters: a model can help allocate attention, while the employer’s checked source determines the availability finding.
 
-The initial experiment's token-plus-seven-day-storage estimate was about **$0.5175**; the exploratory check adds a **$0.01321434** gross token estimate. The unchanged private checkpoint now expires **January 28, 2027, at 10:20 PM IST**, with a full 90-day storage estimate of **$0.05540784**. These are estimates before a verified final invoice. No top-up or paid-plan change was enabled.
+For someone comparing several roles, the useful output is a manageable order in which to investigate. Shortlist displays relative ranks, including shared ranks for ties. It preserves unknown inputs instead of turning missing information into invented certainty. Choosing a row carries the posting into the investigation form, and returning to Shortlist keeps the earlier entries and ranking available.
 
-For TabPFN, 132 public records were labeled using independent first-party verification and a separate AI-agent evidence review, not human review. Features were captured before verification. The frozen employer/template split contained 82 training, 20 validation and 30 test rows. The model never received the final official result as a feature.
+In the fixed 30-record test, TabPFN achieved **0.923 average precision**, compared with **0.893** for logistic regression and an age heuristic. At a budget of six checks, it selected six exact-ID absences with zero false positives; the baselines selected five with one false positive. The dataset was small and retrospective, and its test negatives were already publisher-marked inactive. These results demonstrate prioritization on that dataset, not production accuracy.
 
-With fixed TabPFN-3.5 settings, test **average precision was 0.92276**, versus **0.89251** for both the age heuristic and logistic regression. Within a six-check budget, TabPFN selected **six of 17 exact-ID absences with zero false positives**; the baselines selected five with one false positive. One provider prediction used 10,000 quota tokens.
+The validation set produced tied feature vectors and no improvement over the baselines. I kept that result alongside the test comparison because ranking should earn its place through useful ordering, not through a confident-looking score.
 
-This is a small retrospective demonstration. All 17 test negatives were already marked INACTIVE by the publisher, so they are not discoveries of unmarked stale ads. The validation feature vectors all tied, and every method had AP 0.65 with no improvement. Average precision is reported as AP, not trapezoidal PR-AUC. None of these results establishes production accuracy or employer intent.
+The [model experiments](https://github.com/himanshu748/vacancy-autopsy/blob/main/outputs/vacancy-autopsy/docs/MODEL-EXPERIMENTS.md) include the splits, baselines and limitations.
 
-### The real opening behind the idea
+### Follow the opening back to its source
 
-On October 30, an [OppIDX advertisement](https://www.oppidx.com/opportunities/brand-design-intern-summer-2027-figma-0kjy3o) displayed “Brand Design Intern (Summer 2027),” attributed to Figma. Its Apply link included Greenhouse job ID `6144755004`.
+**SerpApi** supplies search leads. **Browserbase** captures supported public pages and their explicit posting links. The verifier then checks exact posting identity against public Greenhouse, Lever or Ashby feeds. Search snippets and listing age never determine a verdict.
 
-I inspected the advertisement in a browser and followed that link. It redirected to Figma's careers page. At the recorded check time, a complete public Greenhouse feed contained 141 postings and lacked that exact ID. Vacancy Autopsy saved a **Not currently listed** official-source observation. A recheck preserved the original observation.
+This gives discovery and verification different jobs. Search helps you find a candidate. A browser snapshot preserves what the advertisement actually presented. The official feed supplies the current source observation. Keeping those steps distinct lets the product explain an uncertain connection instead of silently treating two similar-looking pages as the same job.
 
-That finding concerns one source at one time. I have no earlier positive observation for this ID, so I cannot establish prior removal, permanent closure or employer intent. The first observation used manual browser inspection. On November 1, Browserbase independently saved this same public advertisement, its exact Greenhouse link and a viewport screenshot. Both saved hashes matched and the newly created session was released; dynamic application state remains unverified. SerpApi has not established the exact counterpart. Supplying two URLs alone still keeps the overall finding inconclusive. The completed capture path is stronger: select the saved snapshot’s unique posting link, then investigate. A November 1 run preserved the captured advertisement and complete 140-posting feed together and returned **Not currently listed**. The exact link is evidenced; prior removal and intent remain unknown.
+**Mastra** coordinates the verification workflow. **Temporal** makes the local investigation resumable through worker failures. **MongoDB Atlas** stores saved checks, captures and private approvals so a restart does not erase the applicant’s work.
 
-### How an answer stays dependable
+**Sentry** traces the tools when something goes wrong. It helped uncover a search adapter that discarded usable results when one URL was malformed. **Auth0** protects the reviewer’s private workspace and approval of an exact report. Public sharing remains disabled in the current app.
 
-Greenhouse, Lever and Ashby provide structured public sources. A deterministic verifier resolves the exact ID and validates complete responses. An old advertisement that still matches an active posting can be **Verified open**. A timeout, incomplete feed or uncertain identity stays **Inconclusive**. Age alone never supplies a verdict.
+### An answer you can act on
 
-Mastra coordinates resolve → check → report. Temporal wraps the investigation in durable execution. A real local recovery test killed the worker after persistence, restarted it and returned the same report with one source fetch and successful history replay. That test used a synthetic source, separate from the live job observations.
+The result view puts the finding ahead of the investigation machinery. A verified opening gives you a route back to the official posting. An absent ID suggests looking for a current repost. An inconclusive check explains which source information could make another attempt worthwhile.
 
-The source tools are also earning their place in the product. SerpApi returned two real advertisement leads for the Figma query; the app saved the result and its JSON download passed its projection-hash check. A second query returned one advertisement lead. Neither produced an exact first-party posting candidate, so I have not demonstrated automatic counterpart discovery yet. Search results help choose a starting point; they do not establish availability.
+The timeline and source records sit behind that first answer. They give an interested reader a way to inspect the check without making every applicant read a technical report. Rechecking creates another observation and preserves the original, so an answer from yesterday remains identifiable as yesterday’s answer.
 
-Sentry helped fix real problems in that journey. The first search failed in 1.53 seconds even though the provider returned usable results: a malformed URL could make local validation discard the entire response. After that repair, successful browser searches appeared in separate traces. The initial shared trace had exposed a second issue, request context leaking across independent operations; fresh searches now have distinct trace IDs, while the verification worker keeps its nested steps together. The traces retain operation, outcome and latency, without the advertisement, query, response body, private checkpoint identity or invented token/cost data.
-
-Saved checks now live in MongoDB Atlas, so returning to an investigation does not depend on the API or worker staying alive. The migration preserved 15 reports and two source artifacts with matching hashes. I rechecked a real Semgrep opening through the app, restarted both processes, and returned to all 16 saved checks; the new report downloaded byte-for-byte unchanged. The database user is scoped to this product's database and cluster. An offline refresh also retained the archive and showed an error rather than telling the applicant it was empty.
-
-Browserbase now saves a genuine remote-browser snapshot through the product. The first attempt exposed a changed opaque transport URL; constructing the documented connection from the freshly created session ID fixed it. The successful capture retained the public advertisement, its exact ATS link and a PNG with verified hashes, then released that same new session.
-
-Auth0 now also works through the actual reviewer interface. The reviewer flow denied my Google account before it had reviewer permission. After I assigned only the dedicated `review:reports` role and signed in again, the product recorded approval of one exact private report; a separate Atlas connection validated the saved approval and report digest. This is a local test using Auth0 development social keys. Production social credentials and hosted callbacks remain open. Hosted mode requires Auth0 alongside persistent MongoDB and currently represents one private shared reviewer workspace, not a tenant-isolated public SaaS. The sharing flow now lets a permitted human preview a source-only finding, confirm the exact approved snapshot, and later withdraw its link. Saved official bytes, report/preview digests and freshness are checked again before publication. Browser tests used clearly labeled synthetic findings; an Atlas adapter test verified persistence and withdrawal of one synthetic record. Sharing remains off in the real app, and no real finding has been published.
-
-The product does not submit applications or contact employers. It helps an applicant choose a better next move before spending another evening applying.
+<!-- Add the verified Render runtime paragraph after deployment succeeds. Keep account setup, card details, credit balances and deployment troubleshooting out of the published product story. -->
 
 ## Why Does Open Innovation Matter?
 
-The open-weight Qwen model made the extractor an experiment I could inspect and adapt. I kept the task schema, frozen employer/template partitions, deterministic parser baseline and every base/tuned output. That made both the validation gain and the later regression visible. I can change the extraction strategy without letting the model redefine what counts as an available job.
+The open-weight model made the listing reader something I could train and compare against its starting point. Keeping the same extraction task across both models made the useful improvements and the regressions visible. That freedom matters when a small field such as a posting ID decides whether a check refers to the right opening.
 
-The open-source Mastra workflow also keeps the decisive check explicit: resolve the exact opening, validate the employer response, and preserve the observation. Model suggestions stay outside that rule. TabPFN helps decide which opening deserves attention first; it cannot turn a suspicious score into a finding.
+Mastra makes the investigation workflow inspectable too. Reading a listing, choosing a check and verifying a source have separate responsibilities. I can change the reader without changing the rule that an availability finding needs a valid employer response.
 
-This build still depends on networked search, model providers and current employer feeds. It does not run offline, and the private hosted checkpoint is not a released set of weights. The benefit I can demonstrate is a replaceable, inspectable extraction and orchestration layer with reproducible comparisons, rather than a claim that a closed service could never implement the same workflow.
+The practical benefit is control over the experiment and the product boundary. I can keep the task schema fixed, retain the original model as a baseline and examine which fields changed after training. When an experiment regresses, the application can still enforce its own identity rules. The source check does not have to inherit the model’s confidence.
+
+That makes future changes more deliberate. A better reader can take the same small extraction task, and another prioritizer can be compared on the same pre-verification information. The workflow remains understandable because the model’s responsibility is explicit.
+
+This version uses hosted model APIs and current web sources, so it needs internet access. The open foundation gives me room to adapt the model and workflow; it does not make the external job boards or provider services disappear.
+
+## The Spirit of It
+
+The moment the idea became concrete was a Brand Design Intern advertisement attributed to Figma.
+
+The advertisement still offered an Apply link. In the November 1 check, the exact linked job ID was absent from the complete public employer feed. Vacancy Autopsy kept the captured advertisement and official-source response together and returned **Not currently listed**.
+
+That finding did not establish why the ID was absent, whether it had been removed, or what the employer intended. It gave an applicant a practical reason to look for a current opening before applying through that advertisement.
+
+The interesting part was how ordinary the advertisement looked. A working page and an Apply button made it easy to keep moving. Comparing it with the official source created a useful pause: there was something concrete to check before putting more work into the application.
+
+That is the experience I wanted to build: a little more clarity before another evening of applications.
 
 ## Prize Categories
 
-I am entering **Best Use of Tinker** and **Best Use of TabPFN** as the featured categories, supported by the experiments and product interactions above.
+Featured categories:
 
-The additional categories are **Best Use of Browserbase**, **Best Use of SerpApi**, **Best Use of Mastra**, **Best Use of Temporal**, **Best Use of MongoDB Atlas**, **Best Use of Sentry Agent Tracing**, and **Best Use of Auth0 for AI Agents**. Nine technologies have meaningful execution evidence; organizer acceptance is not being assumed.
+- **Best Use of Tinker:** the trained Qwen listing reader and its baseline comparison.
+- **Best Use of TabPFN:** the pre-verification Shortlist ranker and evaluation.
 
-**Render remains a target, not an entered category**, until the actual application is deployed and verified. Its service-capacity blocker is cleared, but the persistent deployment still requires payment verification. No billing settings were changed. One project may enter several categories but can win only once in this challenge.
+Additional categories:
 
+- **Best Use of Browserbase:** live advertisement capture and explicit ATS-link evidence.
+- **Best Use of SerpApi:** live search leads for an investigation.
+- **Best Use of Mastra:** the open-source verification workflow.
+- **Best Use of Temporal:** durable local investigations and tested worker recovery.
+- **Best Use of MongoDB Atlas:** persistent saved checks, captures and private approvals.
+- **Best Use of Sentry Agent Tracing:** tool tracing used to diagnose actual search failures.
+- **Best Use of Auth0 for AI Agents:** authenticated reviewer access and approval of an exact report.
 
-Agent-session sharing is optional and remains off. No transcript, account screenshot or secret-bearing artifact is included in this article.
-
-Primary API references: [Greenhouse](https://docs.greenhouse.io/job-board.html), [Lever](https://github.com/lever/postings-api), [Ashby](https://developers.ashbyhq.com/docs/public-job-posting-api). Reproducible checks and limits: [VERIFICATION.md](https://github.com/himanshu748/vacancy-autopsy/blob/main/outputs/vacancy-autopsy/docs/VERIFICATION.md), [MODEL-EXPERIMENTS.md](https://github.com/himanshu748/vacancy-autopsy/blob/main/outputs/vacancy-autopsy/docs/MODEL-EXPERIMENTS.md), [SPONSOR-GATES.md](https://github.com/himanshu748/vacancy-autopsy/blob/main/outputs/vacancy-autopsy/docs/SPONSOR-GATES.md).
+<!-- Add Best Use of Render only after its hosted product journey is verified. My Agent Session is omitted because that template section is optional and session publication is not authorized. -->
