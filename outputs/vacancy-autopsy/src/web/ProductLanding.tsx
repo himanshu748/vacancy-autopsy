@@ -286,8 +286,8 @@ export function ProductLanding({ onStart }: { onStart: () => void }) {
                   Follow the exact opening back to its employer.
                 </p>
                 <span>
-                  The listing reader and shortlist use live models in this
-                  workspace. Render hosting is being prepared.
+                  A trained listing reader and a shortlist ranker connect to
+                  source-based verification in one workspace.
                 </span>
               </div>
             </div>
@@ -342,8 +342,8 @@ export function ProductLanding({ onStart }: { onStart: () => void }) {
                   easy to reach.
                 </h4>
                 <p>
-                  A hosted workspace for the frontend, investigation API and
-                  worker, so checking a job can fit into an applicant’s everyday
+                  Render hosts the frontend, investigation API and Python model
+                  clients, so checking a job can fit into an applicant’s everyday
                   search.
                 </p>
                 <span className="pl-tech-role">DELIVERY</span>
