@@ -15,7 +15,9 @@ RUN python3 -m venv /opt/model-env \
 COPY deploy/cache-tokenizer.py ./deploy/cache-tokenizer.py
 RUN /opt/model-env/bin/python deploy/cache-tokenizer.py /opt/tokenizers
 COPY . .
-RUN npm run build && chown -R node:node /app
+# Runtime may create its optional local data directory. Avoid recursively
+# copying the large dependency layer merely to change its ownership.
+RUN npm run build && chown node:node /app
 ENV NODE_ENV=production \
     PYTHONDONTWRITEBYTECODE=1 \
     TINKER_PYTHON=/opt/model-env/bin/python \
