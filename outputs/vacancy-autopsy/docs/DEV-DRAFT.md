@@ -1,6 +1,6 @@
 ---
 title: "Vacancy Autopsy: Is this job still alive?"
-published: false
+published: true
 tags: devchallenge, hf26challenge
 ---
 
