@@ -5,6 +5,7 @@ import { InvestigationBrief } from "./InvestigationBrief";
 import { ReviewerPanel, getReviewerReturnReportId } from "./ReviewerPanel";
 import { authenticatedDownload } from "./workspace-auth";
 import { publicSourceLink, capturedSourceLink } from "./investigation-view";
+import { CurrentAlternatives } from "./CurrentAlternatives";
 
 const verdicts: Record<Verdict, { label: string; symbol: string }> = {
   verified_open: { label: "Verified open", symbol: "↗" },
@@ -218,6 +219,7 @@ export function CaseFile({
             {view === "brief" ? (
               <>
                 <InvestigationBrief report={record} />
+                <CurrentAlternatives key={record.id} record={record} disabled={busy} />
                 <details className="trail-disclosure">
                   <summary>
                     Investigation timeline{" "}

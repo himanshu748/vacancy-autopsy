@@ -72,6 +72,7 @@ try {
     sharing: releases ? { releases } : undefined,
     priority: { contextPath: process.env.TABPFN_PRIORITY_CONTEXT, pythonPath: process.env.TABPFN_PYTHON },
     triage: triageHistoryPath ? { history: new LocalTriageHistory(triageHistoryPath) } : undefined,
+    alternatives: { apiKey: process.env.PAPERINSTRUMENTS_API_KEY },
     extraction: { artifactPath: process.env.TINKER_EXTRACTOR_ARTIFACT,
       pythonPath: process.env.TINKER_PYTHON, tokenizerCachePath: process.env.TINKER_TOKENIZER_CACHE },
     research: { artifacts: workspace?.artifacts ?? new LocalArtifactStore(resolve(dataDirectory, 'sources')),

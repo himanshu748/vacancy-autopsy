@@ -52,9 +52,12 @@ BROWSERBASE_API_KEY
 BROWSERBASE_PROJECT_ID
 SENTRY_DSN
 SENTRY_ENVIRONMENT
+PAPERINSTRUMENTS_API_KEY
 ```
 
 Keep secrets in the provider's private environment settings, never in source, a Blueprint literal or browser configuration. Auth0 issuer, audience and SPA client ID are public application metadata; access tokens remain in memory and never enter download URLs.
+
+The optional Paper Instruments key enables current-opening alternatives after an absent-ID finding; it is separate from the Tinker reader and TabPFN triage. See [ULTRAMARINE.md](ULTRAMARINE.md). The hosted triage history lives beside the persistent TabPFN context, rather than the ephemeral application directory. Its actual hosted browser receipt is `outputs/evidence/render-live-triage.json` at the workspace root.
 
 MongoDB stores immutable reports, source artifacts and private approvals with unique-ID indexes. Preserve that database across application restarts. Source artifacts and reports contain public-page text and may contain user-pasted content; restrict database access and back it up deliberately. The app has no automatic retention purge, deletion UI or restore-tested backup service.
 

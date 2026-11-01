@@ -17,6 +17,7 @@ import { registerPriorityRoutes, type PriorityOptions } from './priority.js';
 import { registerReleaseRoutes, type SharingOptions } from './releases.js';
 import { CaptureLinkageError, loadCapturedLinkage } from './capture-linkage.js';
 import { registerTriageRoutes, type TriageHistory } from './triage.js';
+import { registerAlternativesRoutes, type AlternativesRunner } from './alternatives.js';
 
 export interface AppOptions {
   store: InvestigationStore;
@@ -28,6 +29,7 @@ export interface AppOptions {
   extraction?: ExtractionOptions;
   priority?: PriorityOptions;
   triage?: { history: TriageHistory };
+  alternatives?: { apiKey?: string; runner?: AlternativesRunner };
   reviewer?: Omit<ApprovalRouteOptions, 'reports'> & { issuer: string; audience: string; clientId?: string };
   sentryEnabled?: boolean;
   /** Explicit opt-in only; immutable private reports are never served publicly. */
@@ -177,6 +179,7 @@ export async function createApp(options: AppOptions) {
     options.priority?.onVerified?.();
   } };
   await registerPriorityRoutes(app, priorityOptions);
+  await registerAlternativesRoutes(app, { store: options.store, ...options.alternatives });
   if (options.triage) await registerTriageRoutes(app, { priority: priorityOptions,
     history: options.triage.history, store: options.store, fetcher: options.fetcher,
     artifacts: options.research?.artifacts, executeInvestigation: options.executeInvestigation,
