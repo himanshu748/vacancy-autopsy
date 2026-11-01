@@ -35,7 +35,15 @@
   ],
   "result": "YOUR NEXT CHECKS\n\nA starting point for your shortlist.\n\nThese are relative checking priorities, not job-availability findings.\n\nThe available details give these openings the same priority. Start with whichever matters most to you.\n\n↔\nSAME PRIORITY\nSecurity Software Engineer, Detection & Response Platform\n\nwww.oppidx.com\n\nInvestigate this opening\n↗\n↔\nSAME PRIORITY\nSoftware Engineer, Research Tools\n\nwww.oppidx.com\n\nInvestigate this opening\n↗\n\nPrioritized with TabPFN from the supplied listing details. No employer source was fetched for this ranking.",
   "relative_only": true,
-  "health_status": "configured_unverified",
-  "health_note": "Current health implementation is static for this integration; no success callback exists.",
-  "missing_settings_observed": []
+  "health_status": "runtime_verified",
+  "health_note": "A shortlist ranking completed and its response was validated in this process. This resets at restart; ranking is never an opening-availability verdict.",
+  "missing_settings_observed": [],
+  "health_verified_at": "2026-11-01T05:08:35.259Z",
+  "health_source_revision": "409be168add5b3b51b00d316faa3a82a042fd0a1",
+  "subsequent_deployed_run": {
+    "started_at": "2026-11-01T05:07:30.370Z",
+    "observed_at": "2026-11-01T05:08:12.293Z",
+    "status": "verified_success",
+    "may_reuse_completed_prediction": true
+  }
 }
