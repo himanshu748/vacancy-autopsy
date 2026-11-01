@@ -16,6 +16,7 @@ export function CurrentAlternatives({ record, disabled = false }: { record: Inve
   const [role, setRole] = useState(/^Posting\s|^Unresolved/i.test(record.title) ? '' : record.title.slice(0, 160));
   const [location, setLocation] = useState('');
   const [result, setResult] = useState<AlternativesResult | null>(null);
+  const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const current = useRef<AbortController | null>(null);
@@ -33,6 +34,12 @@ export function CurrentAlternatives({ record, disabled = false }: { record: Inve
     return () => controller.abort();
   }, [eligible]);
   useEffect(() => () => current.current?.abort(), []);
+  useEffect(() => {
+    if (!result) { setExportUrl(null); return; }
+    const url = URL.createObjectURL(new Blob([JSON.stringify(result, null, 2) + '\n'], { type: 'application/json' }));
+    setExportUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [result]);
   if (!eligible || !configured) return null;
 
   async function compare(event: FormEvent) {
@@ -97,6 +104,8 @@ export function CurrentAlternatives({ record, disabled = false }: { record: Inve
         </ul>}
         <p className="field-help">Compared {result.candidatesConsidered} of {result.candidatesAvailable} retained public postings after title-based preselection. Source checked <time dateTime={result.checkedAt}>{new Date(result.checkedAt).toLocaleString()}</time>.</p>
         <p className="field-help">Suggested with Ultramarine. Open the employer’s posting to assess the role and its current application route.</p>
+        {exportUrl && <a className="secondary-button" href={exportUrl}
+          download={`vacancy-autopsy-alternatives-${record.id}.json`}>Save this comparison</a>}
       </div>}
     </section>
   );
