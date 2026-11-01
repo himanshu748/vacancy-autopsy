@@ -20,9 +20,9 @@ Checked against [the HF26 hub](https://dev.to/challenges/hf26) and [Week 4 (even
 
 **Execution count: all ten original sponsors now have meaningful run evidence, plus Ultramarine as an eleventh integration.** SerpApi's exact first-party-counterpart discovery gate remains unmet. This is not a claim of accepted contest categories, production accuracy or multi-tenant SaaS. Temporal remains local. Entire is additional development tooling and is excluded from this count.
 
-## Browser account observations
+## Historical account setup observations
 
-From the signed-in Hacktoberfest offers page, not from inferred billing state:
+The notes below preserve earlier setup observations. Statements about local-only settings, disabled sharing, pending callbacks or an undeployed Render service describe those earlier stages; the current implementation table and hosted receipts above supersede them. No account balance or promotion is inferred from these notes.
 
 - Tinker promotional codes were exhausted. Google sign-in succeeded using the requested account. A dedicated user-approved key and project powered the completed experiment and workspace reader. The key stays in ignored local configuration. Auto-reload remains disabled; no payment method or plan changed. Private account balances and credential identifiers are omitted from shareable source.
 - Browserbase's one-month Developer promo requires a card. The page says the separate Free plan needs no code. No paid plan or card was enabled.
@@ -55,15 +55,17 @@ From the signed-in Hacktoberfest offers page, not from inferred billing state:
 
 The two completed model experiments answer different questions. Tinker reads candidate identity; TabPFN orders checks using pre-verification features. Neither supplies an official availability verdict. The extraction inputs are predominantly native JSON, the later exploratory third-party extraction check regressed, and every negative in the small priority test was already publisher-marked INACTIVE. Preserve those limits alongside the measured improvements. See [MODEL-EXPERIMENTS.md](MODEL-EXPERIMENTS.md).
 
-Checkboxes indicate observed work only. A completed local or synthetic test never substitutes for a live-provider acceptance gate. The eight-integration execution minimum is now exceeded by nine meaningful runs. This does not establish category acceptance or the complete ten-sponsor hosted release.
+Checkboxes indicate observed work only. A completed local or synthetic test never substitutes for a live-provider acceptance gate. The requested integration minimum is exceeded by actual runs, while category acceptance and broader production claims remain separate.
 
 ## Additional Entire development target
 
 Entire was requested after the original ten. CLI 0.12.2, Graph 0.6.0, a real code query and private Codex hook configuration have been exercised; see [ENTIRE.md](ENTIRE.md). Captured checkpoint/search evidence and a reviewed shareable session artifact must be verified before claiming that category. Console login does not establish CLI authentication or permission to upload sessions. No hosted Trail, trial credit or token-saving result is claimed. This does not increase the count of working investigation integrations.
 
-## Recommended next dependency
+## Remaining release boundary
 
-Capture-to-report linkage, a refreshed captured recheck, local Auth0 approval and Atlas persistence are verified. Resolve the credits-only Render boundary before provisioning; capacity and payment verification are resolved. Hosted Auth0/Atlas access, Linux runtime and the real hosted journey still need their own checks. The reviewed application source and source ZIP are public under explicit approval; the DEV entry is published with nine category claims. The required deployed-link/video demo remains open. Lead the demo with an applicant reading a listing, choosing a check and getting a useful next action. Keep the OppIDX/Figma finding timestamped and qualified; source state can change.
+The SerpApi exact-counterpart gate remains open. A final focused official-source query returned four advertisement leads and no exact ATS posting candidate; the saved projection hash matched. This failed discovery objective is recorded in `outputs/evidence/serpapi-final-source-query.json` rather than represented as success. Search snippets remain leads.
+
+The authorized Render runtime, hosted reviewer login, persistent reports, live model calls, budgeted triage and source-only public demo are verified. The public demo can be opened without an account: [reviewed source finding](https://vacancy-autopsy.onrender.com/?shared=53f29d77e07df8164037f8cc6bbc4f210c806f80163c69d98733b5efcab4f4c4). Its payload exactly matched the approved preview; the private report remained inaccessible anonymously. The revised DEV text remains a local draft under the current explicit instruction not to publish. Video remains excluded.
 
 
-Public entry: [https://dev.to/himanshu_748/the-listing-is-still-here-is-the-job-building-vacancy-autopsy-1dn8](https://dev.to/himanshu_748/the-listing-is-still-here-is-the-job-building-vacancy-autopsy-1dn8). Source release: [hf26-v1](https://github.com/himanshu748/vacancy-autopsy/releases/tag/hf26-v1), revision `4c899541cb617efaf4c244a3f6cc588c9eaab0d4`. Anonymous source-ZIP download matched SHA-256 `16e65dc7b1a31215828a8e7e2974e8efacf8db25ab128cefefd42ca49092c746`. Video remains excluded by the user.
+Existing DEV article URL: [Vacancy Autopsy](https://dev.to/himanshu_748/the-listing-is-still-here-is-the-job-building-vacancy-autopsy-1dn8). This work did not update or publish that article. The [hf26-v1 source release](https://github.com/himanshu748/vacancy-autopsy/releases/tag/hf26-v1) is the initial historical snapshot; current source and the replacement article text are on the main branch. Local evidence and provider metadata remain excluded from the current source tree.
